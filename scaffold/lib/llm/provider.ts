@@ -13,6 +13,7 @@ export interface LLMProvider {
     resumeText: string,
     requirementText: string,
     weight: number,
+    referenceSnippets?: string[],
   ): Promise<RequirementScore>;
   embed(text: string): Promise<number[]>;
 }

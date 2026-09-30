@@ -1,16 +1,53 @@
+import Anthropic from "@anthropic-ai/sdk";
 import type { LLMProvider, RequirementScore } from "./provider";
+import { SCORING_SYSTEM_PROMPT, buildScoringUserPrompt } from "./prompt";
+import { requirementScoreSchema, requirementScoreJsonSchema } from "./schema";
 
-// Stub — real scoring/embedding calls land in the scoring-engine phase.
+const TOOL_NAME = "submit_requirement_score";
+
 export class AnthropicProvider implements LLMProvider {
+  private client(): Anthropic {
+    return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+
   async scoreRequirement(
-    _resumeText: string,
-    _requirementText: string,
-    _weight: number,
+    resumeText: string,
+    requirementText: string,
+    weight: number,
+    referenceSnippets: string[] = [],
   ): Promise<RequirementScore> {
-    throw new Error("AnthropicProvider.scoreRequirement not implemented yet");
+    const response = await this.client().messages.create({
+      model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+      max_tokens: 1024,
+      system: SCORING_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: buildScoringUserPrompt(resumeText, requirementText, weight, referenceSnippets),
+        },
+      ],
+      tools: [
+        {
+          name: TOOL_NAME,
+          description: "Submit the requirement score for this candidate.",
+          input_schema: requirementScoreJsonSchema as unknown as Anthropic.Tool.InputSchema,
+        },
+      ],
+      tool_choice: { type: "tool", name: TOOL_NAME },
+    });
+
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+    );
+    if (!toolUse) {
+      throw new Error("AnthropicProvider.scoreRequirement: model did not return a tool_use block");
+    }
+    return requirementScoreSchema.parse(toolUse.input);
   }
 
   async embed(_text: string): Promise<number[]> {
-    throw new Error("AnthropicProvider.embed not implemented yet — embeddings go through EMBEDDINGS_PROVIDER, not Anthropic");
+    throw new Error(
+      "AnthropicProvider.embed not implemented — embeddings go through EMBEDDINGS_PROVIDER, not Anthropic (Anthropic has no embeddings API)",
+    );
   }
 }
