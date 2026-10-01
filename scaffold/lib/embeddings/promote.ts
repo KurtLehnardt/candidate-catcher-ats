@@ -5,6 +5,8 @@ import { stripBias } from "../resume/bias-strip";
 import { embedText, getEmbeddingsProvider } from "../llm/embeddings";
 import type { EmbeddingsProvider } from "./reference-lookup";
 
+export type ReferenceHireOutcome = "hired" | "top_pick" | "other";
+
 export interface PromoteResult {
   ok: boolean;
   error?: string;
@@ -41,17 +43,26 @@ export function embeddingsConfigStatus(): EmbeddingsConfigStatus {
 }
 
 /**
- * Adds (or updates) a reference-hire row for an applicant who was actually hired — used as
- * grounding context when scoring future candidates against the same job family
- * (lib/embeddings/reference-lookup.ts). Stores the bias-stripped text, never the raw
- * resume, since this text is later fed straight into an LLM prompt as a grounding example.
+ * Adds (or updates) a reference-hire row for an applicant — used as grounding context when
+ * scoring future candidates against the same job family (lib/embeddings/reference-lookup.ts).
+ * Stores the bias-stripped text, never the raw resume, since this text is later fed straight
+ * into an LLM prompt as a grounding example.
+ *
+ * `outcome` records WHY this became a reference example ("hired" is the strongest signal;
+ * "top_pick" covers a deliberate judgment call short of an actual hire) — it's metadata for
+ * the management UI, not currently used to change retrieval/grounding behavior.
  *
  * Idempotent per applicant: re-promoting the same applicant (e.g. to correct the job
- * family) updates their existing row instead of inserting a duplicate. There's no unique
- * DB constraint enforcing this — the check-then-write below is the only guard, which is
- * fine at self-hosted single-process scale but isn't race-safe under concurrent calls.
+ * family, or to change outcome from top_pick to hired once they're actually hired) updates
+ * their existing row instead of inserting a duplicate. There's no unique DB constraint
+ * enforcing this — the check-then-write below is the only guard, which is fine at
+ * self-hosted single-process scale but isn't race-safe under concurrent calls.
  */
-export async function promoteApplicantToReferenceHire(applicantId: string, jobFamily: string): Promise<PromoteResult> {
+export async function promoteApplicantToReferenceHire(
+  applicantId: string,
+  jobFamily: string,
+  outcome: ReferenceHireOutcome = "hired",
+): Promise<PromoteResult> {
   const family = jobFamily.trim();
   if (!family) return { ok: false, error: "Job family is required." };
 
@@ -86,6 +97,7 @@ export async function promoteApplicantToReferenceHire(applicantId: string, jobFa
     embedding: JSON.stringify(embedding),
     embeddingProvider: embeddingsProvider,
     embeddingModel: defaultEmbeddingsModel(embeddingsProvider),
+    outcome,
     promotedFromApplicantId: applicantId,
   };
 

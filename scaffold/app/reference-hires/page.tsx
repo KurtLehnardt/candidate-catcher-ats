@@ -14,6 +14,7 @@ export default async function ReferenceHiresPage() {
       jobFamily: referenceHires.jobFamily,
       createdAt: referenceHires.createdAt,
       embeddingProvider: referenceHires.embeddingProvider,
+      outcome: referenceHires.outcome,
       promotedFromApplicantId: referenceHires.promotedFromApplicantId,
       applicantName: applicants.name,
       applicantJobId: applicants.jobId,
@@ -39,14 +40,14 @@ export default async function ReferenceHiresPage() {
       </div>
 
       <p className="mb-8 text-sm text-zinc-500">
-        Resumes of people you&apos;ve actually hired, grouped by job family. Promote an applicant from their job page
-        (&ldquo;Mark as hired&rdquo;) — new candidates for a matching job family get scored with these as grounding
-        examples.
+        Resumes you&apos;ve marked as confirmed hires or top picks, grouped by job family. Promote an applicant from
+        their job page — new candidates for a matching job family get scored with these as grounding examples.
       </p>
 
       {rows.length === 0 && (
         <p className="text-zinc-400">
-          No reference hires yet. Open a scored applicant and use &ldquo;Mark as hired&rdquo; to add one.
+          No reference examples yet. Open a scored applicant and use &ldquo;Mark as hired&rdquo; or &ldquo;Save as top
+          pick&rdquo; to add one.
         </p>
       )}
 
@@ -62,7 +63,18 @@ export default async function ReferenceHiresPage() {
                 >
                   <div>
                     <p className="font-medium">
-                      {row.applicantName ?? <span className="text-zinc-400 italic">Applicant no longer available</span>}
+                      {row.applicantName ?? <span className="text-zinc-400 italic">Applicant no longer available</span>}{" "}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          row.outcome === "hired"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : row.outcome === "top_pick"
+                              ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                        }`}
+                      >
+                        {row.outcome === "hired" ? "Hired" : row.outcome === "top_pick" ? "Top pick" : "Other"}
+                      </span>
                       {row.applicantJobId && (
                         <>
                           {" "}

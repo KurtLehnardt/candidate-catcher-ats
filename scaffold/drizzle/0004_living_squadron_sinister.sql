@@ -1,0 +1,1 @@
+ALTER TABLE `reference_hires` ADD `outcome` text DEFAULT 'hired' NOT NULL;

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { applicants, jobs, requirements } from "@/lib/db/schema";
+import { applicants, jobs, referenceHires, requirements } from "@/lib/db/schema";
 import { getSettings } from "@/lib/db/settings";
 import { SubmitButton } from "@/components/SubmitButton";
 import { uploadResumes, runScoring, setStage } from "./actions";
@@ -27,6 +27,20 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
     .from(applicants)
     .where(eq(applicants.jobId, jobId))
     .orderBy(desc(applicants.overallScore));
+
+  // Who's already a reference example — so the Shortlisted nudge only shows for applicants
+  // who haven't been promoted yet, instead of nagging on every row.
+  const applicantIds = applicantRows.map((a) => a.id);
+  const promotedIds = new Set(
+    applicantIds.length === 0
+      ? []
+      : (
+          await db
+            .select({ promotedFromApplicantId: referenceHires.promotedFromApplicantId })
+            .from(referenceHires)
+            .where(inArray(referenceHires.promotedFromApplicantId, applicantIds))
+        ).map((r) => r.promotedFromApplicantId),
+  );
 
   const uploadResumesForJob = uploadResumes.bind(null, jobId);
   const runScoringForJob = runScoring.bind(null, jobId);
@@ -112,25 +126,35 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
                     {applicant.overallScore != null ? `${Math.round(applicant.overallScore)}%` : "—"}
                   </td>
                   <td className="py-2 pr-4">
-                    <form
-                      action={setStage.bind(
-                        null,
-                        jobId,
-                        applicant.id,
-                        applicant.stage === "Shortlisted" ? "New" : "Shortlisted",
-                      )}
-                    >
-                      <button
-                        type="submit"
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          applicant.stage === "Shortlisted"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                        }`}
+                    <div className="flex items-center gap-2">
+                      <form
+                        action={setStage.bind(
+                          null,
+                          jobId,
+                          applicant.id,
+                          applicant.stage === "Shortlisted" ? "New" : "Shortlisted",
+                        )}
                       >
-                        {applicant.stage}
-                      </button>
-                    </form>
+                        <button
+                          type="submit"
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            applicant.stage === "Shortlisted"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                          }`}
+                        >
+                          {applicant.stage}
+                        </button>
+                      </form>
+                      {applicant.stage === "Shortlisted" && !promotedIds.has(applicant.id) && (
+                        <Link
+                          href={`/jobs/${jobId}/applicants/${applicant.id}#reference-hire-corpus`}
+                          className="text-xs text-zinc-500 underline hover:text-zinc-900 dark:hover:text-zinc-100"
+                        >
+                          + save as reference
+                        </Link>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -142,6 +142,11 @@ export const referenceHires = sqliteTable(
     embedding: text("embedding"), // JSON.stringify(number[])
     embeddingProvider: text("embedding_provider"), // "openai" | "ollama"
     embeddingModel: text("embedding_model"),
+    // Why this became a reference example — a confirmed hire is a stronger signal than a
+    // deliberate top-pick mark, but both are explicit user judgments worth recording and
+    // grounding future scoring on. Defaults to "hired" so the existing promote flow (and
+    // any pre-migration rows) need no behavior change.
+    outcome: text("outcome").notNull().default("hired"), // "hired" | "top_pick" | "other"
     promotedFromApplicantId: text("promoted_from_applicant_id").references(() => applicants.id, {
       onDelete: "set null",
     }),

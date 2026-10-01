@@ -29,6 +29,13 @@
       "when": 1790864061758,
       "tag": "0003_regular_ares",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790888797751,
+      "tag": "0004_living_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

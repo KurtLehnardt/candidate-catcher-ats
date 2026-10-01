@@ -91,7 +91,7 @@ export default async function ApplicantPage({
         </form>
       </section>
 
-      <section className="mb-8 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section id="reference-hire-corpus" className="mb-8 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Reference-hire corpus</h2>
           <Link href="/reference-hires" className="text-xs text-zinc-500 hover:underline">
@@ -103,7 +103,14 @@ export default async function ApplicantPage({
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             &#10003; In the reference corpus as{" "}
             <span className="font-medium text-zinc-900 dark:text-zinc-100">&ldquo;{existingReferenceHire.jobFamily}&rdquo;</span>
-            {" "}— used as grounding when scoring future candidates for this job family.
+            {" "}
+            (
+            {existingReferenceHire.outcome === "hired"
+              ? "hired"
+              : existingReferenceHire.outcome === "top_pick"
+                ? "top pick"
+                : "other"}
+            ) — used as grounding when scoring future candidates for this job family.
           </p>
         ) : !embeddingsStatus.configured ? (
           <p className="text-sm text-zinc-500">
@@ -112,20 +119,45 @@ export default async function ApplicantPage({
             this.
           </p>
         ) : (
-          <form
-            action={promoteToReferenceHire.bind(null, jobId, applicantId)}
-            className="flex items-center gap-3"
-          >
-            <input
-              name="jobFamily"
-              type="text"
-              defaultValue={job?.title ?? ""}
-              placeholder="Job family"
-              required
-              className="flex-1 rounded-md border border-zinc-300 px-3 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <SubmitButton pendingText="Adding...">Mark as hired</SubmitButton>
-          </form>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-zinc-500">
+              Save this resume as a grounding example for future candidates in the same job family — as a confirmed
+              hire, or as a top pick short of an actual hire.
+            </p>
+            <form
+              action={promoteToReferenceHire.bind(null, jobId, applicantId, "hired")}
+              className="flex items-center gap-3"
+            >
+              <input
+                name="jobFamily"
+                type="text"
+                defaultValue={job?.title ?? ""}
+                placeholder="Job family"
+                required
+                className="flex-1 rounded-md border border-zinc-300 px-3 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              />
+              <SubmitButton pendingText="Adding...">Mark as hired</SubmitButton>
+            </form>
+            <form
+              action={promoteToReferenceHire.bind(null, jobId, applicantId, "top_pick")}
+              className="flex items-center gap-3"
+            >
+              <input
+                name="jobFamily"
+                type="text"
+                defaultValue={job?.title ?? ""}
+                placeholder="Job family"
+                required
+                className="flex-1 rounded-md border border-zinc-300 px-3 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              />
+              <SubmitButton
+                pendingText="Adding..."
+                className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                Save as top pick
+              </SubmitButton>
+            </form>
+          </div>
         )}
       </section>
 
