@@ -6,6 +6,10 @@ import { requirementScoreSchema, requirementScoreJsonSchema } from "./schema";
 const TOOL_NAME = "submit_requirement_score";
 
 export class AnthropicProvider implements LLMProvider {
+  // Optional override (from the in-app /settings picker) for the chat model — falls back
+  // to ANTHROPIC_MODEL, then a hardcoded default, when not given.
+  constructor(private readonly modelOverride?: string) {}
+
   private client(): Anthropic {
     return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
@@ -17,7 +21,7 @@ export class AnthropicProvider implements LLMProvider {
     referenceSnippets: string[] = [],
   ): Promise<RequirementScore> {
     const response = await this.client().messages.create({
-      model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+      model: this.modelOverride || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
       max_tokens: 1024,
       system: SCORING_SYSTEM_PROMPT,
       messages: [

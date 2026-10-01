@@ -4,6 +4,15 @@ import { SCORING_SYSTEM_PROMPT, buildScoringUserPrompt } from "./prompt";
 import { requirementScoreSchema, requirementScoreJsonSchema } from "./schema";
 
 export class OpenAIProvider implements LLMProvider {
+  // `chatModelOverride`/`embeddingsModelOverride` come from the in-app /settings picker.
+  // This class does double duty as both the chat provider and (via lib/llm/embeddings.ts)
+  // the OpenAI embeddings impl, so the two overrides are independent — picking a chat
+  // model in /settings must not silently change which embeddings model gets used.
+  constructor(
+    private readonly chatModelOverride?: string,
+    private readonly embeddingsModelOverride?: string,
+  ) {}
+
   private client(): OpenAI {
     return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
@@ -15,7 +24,7 @@ export class OpenAIProvider implements LLMProvider {
     referenceSnippets: string[] = [],
   ): Promise<RequirementScore> {
     const completion = await this.client().chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: this.chatModelOverride || process.env.OPENAI_MODEL || "gpt-4o-mini",
       messages: [
         { role: "system", content: SCORING_SYSTEM_PROMPT },
         {
@@ -39,7 +48,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async embed(text: string): Promise<number[]> {
-    const model = process.env.EMBEDDINGS_MODEL || "text-embedding-3-small";
+    const model = this.embeddingsModelOverride || process.env.EMBEDDINGS_MODEL || "text-embedding-3-small";
     const response = await this.client().embeddings.create({ model, input: text });
     const embedding = response.data[0]?.embedding;
     if (!embedding) throw new Error("OpenAIProvider.embed: no embedding returned");

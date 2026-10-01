@@ -146,6 +146,22 @@ export const referenceHires = sqliteTable(
   (t) => [index("reference_hires_job_family_idx").on(t.jobFamily)],
 );
 
+// Singleton row (fixed id) holding the user's in-app LLM provider/model choice. Null
+// columns mean "fall back to the .env.local-derived environment value" — this is what
+// lets an existing install keep working unchanged until the user actively picks
+// something in /settings. API keys are never stored here, env-only — this table only
+// ever decides WHICH provider/model is active, never credentials.
+export const settings = sqliteTable("settings", {
+  id: text("id").primaryKey().default("singleton"),
+  llmProvider: text("llm_provider"), // 'anthropic' | 'openai' | 'ollama' | null
+  llmModel: text("llm_model"),
+  embeddingsProvider: text("embeddings_provider"), // 'openai' | 'ollama' | null
+  embeddingsModel: text("embeddings_model"),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Relations — needed for the `db.query.X.findMany({ with: {...} })` relational API used
 // by a few read paths (e.g. loading an applicant together with their resume in one go).
 

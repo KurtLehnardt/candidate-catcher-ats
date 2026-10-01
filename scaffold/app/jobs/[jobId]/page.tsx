@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { applicants, jobs, requirements } from "@/lib/db/schema";
+import { getSettings } from "@/lib/db/settings";
 import { SubmitButton } from "@/components/SubmitButton";
 import { uploadResumes, runScoring, setStage } from "./actions";
+
+const PROVIDER_LABEL: Record<string, string> = { anthropic: "Anthropic", openai: "OpenAI", ollama: "Ollama (local)" };
 
 export default async function JobPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = await params;
@@ -27,6 +30,17 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
 
   const uploadResumesForJob = uploadResumes.bind(null, jobId);
   const runScoringForJob = runScoring.bind(null, jobId);
+
+  const settings = getSettings();
+  const activeProvider = settings.llmProvider || process.env.LLM_PROVIDER || "anthropic";
+  const activeModel =
+    settings.llmModel ||
+    (activeProvider === "ollama"
+      ? process.env.LOCAL_LLM_MODEL
+      : activeProvider === "openai"
+        ? process.env.OPENAI_MODEL
+        : process.env.ANTHROPIC_MODEL) ||
+    "default model";
 
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-12">
@@ -62,8 +76,14 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
       </section>
 
       <section className="mb-8">
-        <form action={runScoringForJob}>
+        <form action={runScoringForJob} className="flex items-center gap-3">
           <SubmitButton pendingText="Scoring... this can take a while">Run scoring</SubmitButton>
+          <span className="text-xs text-zinc-500">
+            Scoring with: <span className="font-medium text-zinc-700 dark:text-zinc-300">{PROVIDER_LABEL[activeProvider] ?? activeProvider} &middot; {activeModel}</span>{" "}
+            <Link href="/settings" className="underline hover:text-zinc-900 dark:hover:text-zinc-100">
+              change
+            </Link>
+          </span>
         </form>
       </section>
 

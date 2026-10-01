@@ -20,6 +20,9 @@ export default async function JobsPage() {
           <Link href="/reference-hires" className="text-sm text-zinc-500 hover:underline">
             Reference hires
           </Link>
+          <Link href="/settings" className="text-sm text-zinc-500 hover:underline">
+            Settings
+          </Link>
           <Link
             href="/jobs/new"
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
