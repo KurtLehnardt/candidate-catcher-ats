@@ -19,7 +19,10 @@ export interface LLMProvider {
 }
 
 export function getProvider(): LLMProvider {
-  const provider = process.env.LLM_PROVIDER ?? "anthropic";
+  // `||` (not `??`): a freshly-copied .env.local has LLM_PROVIDER="" (blank,
+  // meant to be filled in by `npm run setup`/`setup:local`), and that empty
+  // string must fall back too, not just an absent/undefined var.
+  const provider = process.env.LLM_PROVIDER || "anthropic";
 
   switch (provider) {
     case "anthropic":
