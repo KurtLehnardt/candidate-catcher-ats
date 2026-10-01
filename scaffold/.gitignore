@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local SQLite DB + uploaded resume files — never commit user data
+/data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

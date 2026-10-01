@@ -1,8 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentOrgId } from "@/lib/org";
+import { getDb } from "@/lib/db/client";
+import { jobs, requirements } from "@/lib/db/schema";
 
 export interface RequirementInput {
   text: string;
@@ -17,30 +17,24 @@ export async function createJob(formData: FormData): Promise<void> {
   const requirementTexts = formData.getAll("requirementText").map((v) => String(v));
   const requirementWeights = formData.getAll("requirementWeight").map((v) => Number(v) || 1.0);
 
-  const requirements: RequirementInput[] = requirementTexts
+  const requirementInputs: RequirementInput[] = requirementTexts
     .map((text, i) => ({ text: text.trim(), weight: requirementWeights[i] ?? 1.0 }))
     .filter((r) => r.text.length > 0);
 
-  const orgId = await getCurrentOrgId();
-  const supabase = await createClient();
+  const db = getDb();
 
-  const { data: job, error: jobError } = await supabase
-    .from("jobs")
-    .insert({ org_id: orgId, title, description, status: "draft" })
-    .select("id")
-    .single();
-  if (jobError || !job) throw new Error(`createJob: ${jobError?.message ?? "no job returned"}`);
+  const [job] = await db.insert(jobs).values({ title, description, status: "draft" }).returning({ id: jobs.id });
+  if (!job) throw new Error("createJob: no job returned");
 
-  if (requirements.length > 0) {
-    const { error: reqError } = await supabase.from("requirements").insert(
-      requirements.map((r, position) => ({
-        job_id: job.id,
+  if (requirementInputs.length > 0) {
+    await db.insert(requirements).values(
+      requirementInputs.map((r, position) => ({
+        jobId: job.id,
         text: r.text,
         weight: r.weight,
         position,
       })),
     );
-    if (reqError) throw new Error(`createJob: requirements insert failed: ${reqError.message}`);
   }
 
   redirect(`/jobs/${job.id}`);

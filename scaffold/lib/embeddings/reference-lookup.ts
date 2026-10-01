@@ -1,4 +1,6 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { and, eq } from "drizzle-orm";
+import { getDb } from "../db/client";
+import { referenceHires } from "../db/schema";
 
 export type EmbeddingsProvider = "openai" | "ollama";
 
@@ -9,7 +11,6 @@ export interface ReferenceHireMatch {
 }
 
 export interface ReferenceHireLookupParams {
-  orgId: string;
   jobFamily: string;
   embedding: number[];
   embeddingsProvider: EmbeddingsProvider;
@@ -17,40 +18,44 @@ export interface ReferenceHireLookupParams {
   k?: number;
 }
 
-interface MatchReferenceHiresRow {
-  id: string;
-  resume_text: string;
-  similarity: number;
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return -1;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i]! * b[i]!;
+    normA += a[i]! * a[i]!;
+    normB += b[i]! * b[i]!;
+  }
+  if (normA === 0 || normB === 0) return -1;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 /**
- * Top-k most similar reference-hire resumes for an org + job family, via the
- * match_reference_hires_openai / match_reference_hires_ollama RPCs defined in
- * 0002_embedding_dims.sql. Which RPC (and therefore which embedding column/dimension)
- * runs is picked by `embeddingsProvider` — never mix openai- and ollama-dimensioned
- * vectors in one lookup.
+ * Top-k most similar reference-hire resumes for a job family. No ANN index — these
+ * corpora run tens to low-hundreds of rows for a self-hosted single user, so brute-force
+ * cosine similarity in JS is simpler and keeps the install free of a native vector
+ * extension. Always filtered to `embeddingsProvider` first — never compare vectors
+ * produced by different providers/dimensions against each other.
  */
-export async function getTopReferenceHires(
-  supabase: SupabaseClient,
-  params: ReferenceHireLookupParams,
-): Promise<ReferenceHireMatch[]> {
-  const rpcName =
-    params.embeddingsProvider === "ollama" ? "match_reference_hires_ollama" : "match_reference_hires_openai";
+export async function getTopReferenceHires(params: ReferenceHireLookupParams): Promise<ReferenceHireMatch[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ id: referenceHires.id, resumeText: referenceHires.resumeText, embedding: referenceHires.embedding })
+    .from(referenceHires)
+    .where(
+      and(eq(referenceHires.jobFamily, params.jobFamily), eq(referenceHires.embeddingProvider, params.embeddingsProvider)),
+    );
 
-  const { data, error } = await supabase.rpc(rpcName, {
-    query_embedding: params.embedding,
-    match_org_id: params.orgId,
-    match_job_family: params.jobFamily,
-    match_count: params.k ?? 3,
-  });
-
-  if (error) {
-    throw new Error(`getTopReferenceHires: ${rpcName} failed: ${error.message}`);
-  }
-
-  return ((data ?? []) as MatchReferenceHiresRow[]).map((row) => ({
-    id: row.id,
-    resumeText: row.resume_text,
-    similarity: row.similarity,
-  }));
+  return rows
+    .filter((r): r is typeof r & { embedding: string } => r.embedding != null)
+    .map((r) => ({
+      id: r.id,
+      resumeText: r.resumeText,
+      similarity: cosineSimilarity(JSON.parse(r.embedding) as number[], params.embedding),
+    }))
+    .filter((r) => r.similarity > -1)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, params.k ?? 3);
 }

@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentOrgId } from "@/lib/org";
+import { count, desc } from "drizzle-orm";
+import { getDb } from "@/lib/db/client";
+import { applicants, jobs } from "@/lib/db/schema";
 
 export default async function JobsPage() {
-  const orgId = await getCurrentOrgId();
-  const supabase = await createClient();
-  const { data: jobs, error } = await supabase
-    .from("jobs")
-    .select("id, title, status, created_at, applicants(count)")
-    .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+  const db = getDb();
+  const jobRows = await db.select().from(jobs).orderBy(desc(jobs.createdAt));
+  const countRows = await db
+    .select({ jobId: applicants.jobId, count: count() })
+    .from(applicants)
+    .groupBy(applicants.jobId);
+  const countByJob = new Map(countRows.map((r) => [r.jobId, r.count]));
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-12">
@@ -23,14 +24,10 @@ export default async function JobsPage() {
         </Link>
       </div>
 
-      {error && <p className="text-red-600">Failed to load jobs: {error.message}</p>}
-
-      {jobs?.length === 0 && (
-        <p className="text-zinc-500">No jobs yet. Create one to start ranking applicants.</p>
-      )}
+      {jobRows.length === 0 && <p className="text-zinc-500">No jobs yet. Create one to start ranking applicants.</p>}
 
       <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-        {jobs?.map((job) => (
+        {jobRows.map((job) => (
           <li key={job.id}>
             <Link
               href={`/jobs/${job.id}`}
@@ -39,7 +36,7 @@ export default async function JobsPage() {
               <div>
                 <p className="font-medium">{job.title}</p>
                 <p className="text-sm text-zinc-500">
-                  {job.applicants?.[0]?.count ?? 0} applicant(s) &middot; {job.status}
+                  {countByJob.get(job.id) ?? 0} applicant(s) &middot; {job.status}
                 </p>
               </div>
             </Link>
