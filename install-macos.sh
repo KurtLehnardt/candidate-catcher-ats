@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# ClearMatch — one-shot macOS installer.
+# Candidate Catcher ATS — one-shot macOS installer.
 #
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/clearmatch/main/install-macos.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/candidate-catcher-ats/main/install-macos.sh)"
 #
 # Deliberately not `curl ... | bash`: this script shells out to `brew
 # install` more than once, and Homebrew's own progress renderer reads from
@@ -18,27 +18,27 @@
 # below), runs `npm ci` in scaffold/, and (optionally) installs Ollama for a
 # fully local run. Safe to re-run: skips anything already present/done.
 #
-# After this finishes, `cd clearmatch/scaffold` and run `npm run setup`
+# After this finishes, `cd candidate-catcher-ats/scaffold` and run `npm run setup`
 # (cloud API keys) or `npm run setup:local -- --yes` (fully local via
 # Ollama), then `npm run dev`.
 set -euo pipefail
 
 # TODO: set this once the repo has a real GitHub remote.
-REPO_URL="${CLEARMATCH_REPO_URL:-https://github.com/TODO-SET-ME/clearmatch.git}"
-TARGET_DIR="${CLEARMATCH_INSTALL_DIR:-clearmatch}"
+REPO_URL="${CANDIDATE_CATCHER_REPO_URL:-https://github.com/TODO-SET-ME/candidate-catcher-ats.git}"
+TARGET_DIR="${CANDIDATE_CATCHER_INSTALL_DIR:-candidate-catcher-ats}"
 NODE_MAJOR_MIN=22
 # Lowest macOS major version Ollama's .app/.dmg (and the Homebrew cask) support.
 # Keep in sync with OLLAMA_MIN_MACOS in scaffold/scripts/lib/hardware.mjs.
 OLLAMA_MIN_MACOS=14
 OLLAMA_TGZ_URL="https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz"
-OLLAMA_PREFIX="${CLEARMATCH_OLLAMA_PREFIX:-$HOME/.local/ollama}"
+OLLAMA_PREFIX="${CANDIDATE_CATCHER_OLLAMA_PREFIX:-$HOME/.local/ollama}"
 
 log()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
 ok()   { printf '  \033[32m\xe2\x9c\x93\033[0m %s\n' "$1"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
 die()  { printf '  \033[31mx\033[0m %s\n' "$1" >&2; exit 1; }
 
-log "ClearMatch — macOS install"
+log "Candidate Catcher ATS — macOS install"
 
 # 0) Confirm we're actually on macOS, and learn the version/arch. Everything
 #    below (Homebrew prefix, the Ollama split) keys off these two facts.
@@ -98,7 +98,7 @@ else
   # actionable message instead of Homebrew's own context-free "Insufficient
   # permissions" abort.
   if ! sudo -n true 2>/dev/null; then
-    die "Installing Homebrew (needed to finish this without a terminal to prompt on) needs sudo, and this session has no cached sudo credential. Either run 'sudo -v' once in this terminal first and re-run this one-liner within a few minutes, or don't pipe it -- download and run it directly so it has a terminal to prompt through: curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/clearmatch/main/install-macos.sh -o install-macos.sh && bash install-macos.sh"
+    die "Installing Homebrew (needed to finish this without a terminal to prompt on) needs sudo, and this session has no cached sudo credential. Either run 'sudo -v' once in this terminal first and re-run this one-liner within a few minutes, or don't pipe it -- download and run it directly so it has a terminal to prompt through: curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/candidate-catcher-ats/main/install-macos.sh -o install-macos.sh && bash install-macos.sh"
   fi
   log "No Homebrew and no terminal to prompt through — installing Homebrew (needed for an unattended install)..."
   # Fetched into a variable first and checked explicitly: a failure INSIDE a
@@ -124,7 +124,7 @@ else
   if [ -n "$SHELL_PROFILE" ]; then
     SHELLENV_LINE="eval \"\$($(command -v brew) shellenv)\""
     if [ ! -f "$SHELL_PROFILE" ] || ! grep -qF "$SHELLENV_LINE" "$SHELL_PROFILE"; then
-      printf '\n# Added by the ClearMatch installer\n%s\n' "$SHELLENV_LINE" >> "$SHELL_PROFILE"
+      printf '\n# Added by the Candidate Catcher ATS installer\n%s\n' "$SHELLENV_LINE" >> "$SHELL_PROFILE"
       ok "added Homebrew to PATH in $SHELL_PROFILE (open a new terminal, or run: source $SHELL_PROFILE)"
     fi
   else
@@ -207,7 +207,7 @@ elif [ -f "$TARGET_DIR/scaffold/package.json" ]; then
   ok "$TARGET_DIR already cloned"
 else
   if [[ "$REPO_URL" == *"TODO-SET-ME"* ]]; then
-    die "CLEARMATCH_REPO_URL isn't set and no local checkout was found next to this script. Set CLEARMATCH_REPO_URL=<your fork's git URL>, or run this script from inside an already-cloned copy of the repo."
+    die "CANDIDATE_CATCHER_REPO_URL isn't set and no local checkout was found next to this script. Set CANDIDATE_CATCHER_REPO_URL=<your fork's git URL>, or run this script from inside an already-cloned copy of the repo."
   fi
   log "Cloning $REPO_URL into ./$TARGET_DIR ..."
   git clone "$REPO_URL" "$TARGET_DIR"

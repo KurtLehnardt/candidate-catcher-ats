@@ -96,7 +96,7 @@ export const requirementScores = sqliteTable(
     aiScore: real("ai_score").notNull(),
     evidenceSnippet: text("evidence_snippet"),
     // Commentary distinguishing a quantified, specific claim from generic
-    // keyword-stuffing/buzzwords — ClearMatch's "substance vs. buzzword" signal.
+    // keyword-stuffing/buzzwords — Candidate Catcher ATS's "substance vs. buzzword" signal.
     substanceNote: text("substance_note"),
     createdAt: createdAt(),
   },

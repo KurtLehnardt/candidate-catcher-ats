@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# ClearMatch — one-shot Linux installer.
+# Candidate Catcher ATS — one-shot Linux installer.
 #
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/clearmatch/main/install-linux.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/candidate-catcher-ats/main/install-linux.sh)"
 #
 # Installs git + Node.js 22+ if missing (apt, dnf, and yum are supported),
 # clones the repo (skipped if you're already running this from a local
@@ -9,14 +9,14 @@
 # and (optionally) installs Ollama for a fully local run via its official
 # install script. Safe to re-run: skips anything already present/done.
 #
-# After this finishes, `cd clearmatch/scaffold` and run `npm run setup`
+# After this finishes, `cd candidate-catcher-ats/scaffold` and run `npm run setup`
 # (cloud API keys) or `npm run setup:local -- --yes` (fully local via
 # Ollama), then `npm run dev`.
 set -euo pipefail
 
 # TODO: set this once the repo has a real GitHub remote.
-REPO_URL="${CLEARMATCH_REPO_URL:-https://github.com/TODO-SET-ME/clearmatch.git}"
-TARGET_DIR="${CLEARMATCH_INSTALL_DIR:-clearmatch}"
+REPO_URL="${CANDIDATE_CATCHER_REPO_URL:-https://github.com/TODO-SET-ME/candidate-catcher-ats.git}"
+TARGET_DIR="${CANDIDATE_CATCHER_INSTALL_DIR:-candidate-catcher-ats}"
 NODE_MAJOR_MIN=22
 
 log()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
@@ -24,7 +24,7 @@ ok()   { printf '  \033[32m\xe2\x9c\x93\033[0m %s\n' "$1"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
 die()  { printf '  \033[31mx\033[0m %s\n' "$1" >&2; exit 1; }
 
-log "ClearMatch — Linux install"
+log "Candidate Catcher ATS — Linux install"
 
 [ "$(uname -s)" = "Linux" ] || die "This installer is for Linux. On macOS use install-macos.sh; on Windows use install-windows.ps1."
 
@@ -114,7 +114,7 @@ elif [ -f "$TARGET_DIR/scaffold/package.json" ]; then
   ok "$TARGET_DIR already cloned"
 else
   if [[ "$REPO_URL" == *"TODO-SET-ME"* ]]; then
-    die "CLEARMATCH_REPO_URL isn't set and no local checkout was found next to this script. Set CLEARMATCH_REPO_URL=<your fork's git URL>, or run this script from inside an already-cloned copy of the repo."
+    die "CANDIDATE_CATCHER_REPO_URL isn't set and no local checkout was found next to this script. Set CANDIDATE_CATCHER_REPO_URL=<your fork's git URL>, or run this script from inside an already-cloned copy of the repo."
   fi
   log "Cloning $REPO_URL into ./$TARGET_DIR ..."
   git clone "$REPO_URL" "$TARGET_DIR"

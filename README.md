@@ -1,8 +1,8 @@
-# ClearMatch
+# Candidate Catcher ATS
 
-ClearMatch ranks a batch of resumes against a job's requirements for a recruiter, instead of the usual "optimize my own resume" tools — per-requirement evidence-backed scoring, user-adjustable requirement weights, a reference-hire corpus, manual override scoring, and buzzword-vs-genuine-accomplishment detection.
+Candidate Catcher ATS ranks a batch of resumes against a job's requirements for a recruiter, instead of the usual "optimize my own resume" tools — per-requirement evidence-backed scoring, user-adjustable requirement weights, a reference-hire corpus, manual override scoring, and buzzword-vs-genuine-accomplishment detection.
 
-Free, open-source, and self-hosted only — no hosted SaaS, no billing, no login. Clone it, run it on your own machine (`npm run dev`, bound to localhost), and bring your own cloud LLM API key or run fully local via Ollama. Data lives in a local SQLite file (`DATABASE_PATH`, default `scaffold/data/clearmatch.db`) and a local `scaffold/data/resumes/` directory — nothing leaves your machine unless you choose a cloud LLM provider.
+Free, open-source, and self-hosted only — no hosted SaaS, no billing, no login. Clone it, run it on your own machine (`npm run dev`, bound to localhost), and bring your own cloud LLM API key or run fully local via Ollama. Data lives in a local SQLite file (`DATABASE_PATH`, default `scaffold/data/candidate-catcher-ats.db`) and a local `scaffold/data/resumes/` directory — nothing leaves your machine unless you choose a cloud LLM provider.
 
 ## Install
 
@@ -11,15 +11,15 @@ Every OS below ends up running the same `npm` commands inside `scaffold/` — th
 ### macOS
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/clearmatch/main/install-macos.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/candidate-catcher-ats/main/install-macos.sh)"
 ```
 
-Installs Node 22+ and git if missing — via Homebrew where available, otherwise the Xcode Command Line Tools for git and the official nodejs.org `.pkg` for Node — clones the repo into `./clearmatch`, runs `npm ci`, and installs Ollama via Homebrew (or the CLI tarball directly on macOS 13 or older, where Ollama's own app/cask no longer supports the OS). Safe to re-run.
+Installs Node 22+ and git if missing — via Homebrew where available, otherwise the Xcode Command Line Tools for git and the official nodejs.org `.pkg` for Node — clones the repo into `./candidate-catcher-ats`, runs `npm ci`, and installs Ollama via Homebrew (or the CLI tarball directly on macOS 13 or older, where Ollama's own app/cask no longer supports the OS). Safe to re-run.
 
 ### Linux
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/clearmatch/main/install-linux.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR-ORG/candidate-catcher-ats/main/install-linux.sh)"
 ```
 
 Installs git and Node 22+ if missing (supports `apt`, `dnf`, and `yum`), clones the repo, runs `npm ci`, and installs Ollama via its official install script. Safe to re-run.
@@ -27,7 +27,7 @@ Installs git and Node 22+ if missing (supports `apt`, `dnf`, and `yum`), clones 
 ### Windows
 
 ```powershell
-irm https://raw.githubusercontent.com/YOUR-ORG/clearmatch/main/install-windows.ps1 | iex
+irm https://raw.githubusercontent.com/YOUR-ORG/candidate-catcher-ats/main/install-windows.ps1 | iex
 ```
 
 Installs Node 22+ and git if missing — via `winget` where available, otherwise a direct official-installer download (`winget` isn't present on every Windows box, notably Windows Server) — clones the repo, runs `npm ci`, and installs Ollama via `winget`. Safe to re-run.
@@ -35,8 +35,8 @@ Installs Node 22+ and git if missing — via `winget` where available, otherwise
 ### Prefer to do it by hand?
 
 ```bash
-git clone https://github.com/YOUR-ORG/clearmatch.git
-cd clearmatch/scaffold
+git clone https://github.com/YOUR-ORG/candidate-catcher-ats.git
+cd candidate-catcher-ats/scaffold
 npm install
 ```
 

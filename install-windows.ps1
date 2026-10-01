@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
-# ClearMatch — one-shot Windows installer.
+# Candidate Catcher ATS — one-shot Windows installer.
 #
-#   irm https://raw.githubusercontent.com/YOUR-ORG/clearmatch/main/install-windows.ps1 | iex
+#   irm https://raw.githubusercontent.com/YOUR-ORG/candidate-catcher-ats/main/install-windows.ps1 | iex
 #
 # Installs git + Node.js 22+ if missing (winget where available, otherwise a
 # direct official-installer download — winget isn't present on every
@@ -10,15 +10,15 @@
 # below), runs `npm ci` in scaffold/, and (optionally) installs Ollama for a
 # fully local run. Safe to re-run: skips anything already present/done.
 #
-# After this finishes, `cd clearmatch\scaffold` and run `npm run setup`
+# After this finishes, `cd candidate-catcher-ats\scaffold` and run `npm run setup`
 # (cloud API keys) or `npm run setup:local -- --yes` (fully local via
 # Ollama), then `npm run dev`.
 
 $ErrorActionPreference = "Stop"
 
 # TODO: set this once the repo has a real GitHub remote.
-$RepoUrl = if ($env:CLEARMATCH_REPO_URL) { $env:CLEARMATCH_REPO_URL } else { "https://github.com/TODO-SET-ME/clearmatch.git" }
-$TargetDir = if ($env:CLEARMATCH_INSTALL_DIR) { $env:CLEARMATCH_INSTALL_DIR } else { "clearmatch" }
+$RepoUrl = if ($env:CANDIDATE_CATCHER_REPO_URL) { $env:CANDIDATE_CATCHER_REPO_URL } else { "https://github.com/TODO-SET-ME/candidate-catcher-ats.git" }
+$TargetDir = if ($env:CANDIDATE_CATCHER_INSTALL_DIR) { $env:CANDIDATE_CATCHER_INSTALL_DIR } else { "candidate-catcher-ats" }
 $NodeMajorMin = 22
 
 function Write-Heading($msg) { Write-Host "`n$msg" -ForegroundColor White }
@@ -26,7 +26,7 @@ function Write-Ok($msg)      { Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-WarnMsg($msg) { Write-Host "  [!]  $msg" -ForegroundColor Yellow }
 function Die($msg) { Write-Host "  [X]  $msg" -ForegroundColor Red; exit 1 }
 
-Write-Heading "ClearMatch — Windows install"
+Write-Heading "Candidate Catcher ATS — Windows install"
 
 $HasWinget = [bool](Get-Command winget -ErrorAction SilentlyContinue)
 if ($HasWinget) {
@@ -104,7 +104,7 @@ if ($ScriptDir -and (Test-Path (Join-Path $ScriptDir "scaffold\package.json"))) 
   Write-Ok "$TargetDir already cloned"
 } else {
   if ($RepoUrl -like "*TODO-SET-ME*") {
-    Die "CLEARMATCH_REPO_URL isn't set and no local checkout was found next to this script. Set `$env:CLEARMATCH_REPO_URL = '<your fork''s git URL>'`, or run this script from inside an already-cloned copy of the repo."
+    Die "CANDIDATE_CATCHER_REPO_URL isn't set and no local checkout was found next to this script. Set `$env:CANDIDATE_CATCHER_REPO_URL = '<your fork''s git URL>'`, or run this script from inside an already-cloned copy of the repo."
   }
   Write-Heading "Cloning $RepoUrl into .\$TargetDir ..."
   git clone $RepoUrl $TargetDir

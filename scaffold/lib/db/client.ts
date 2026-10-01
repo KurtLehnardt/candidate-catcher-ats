@@ -5,7 +5,7 @@ import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 
-const DB_PATH = process.env.DATABASE_PATH ?? "data/clearmatch.db";
+const DB_PATH = process.env.DATABASE_PATH ?? "data/candidate-catcher-ats.db";
 const MIGRATIONS_FOLDER = resolve(process.cwd(), "drizzle");
 
 type Db = BetterSQLite3Database<typeof schema>;
@@ -13,7 +13,7 @@ type Db = BetterSQLite3Database<typeof schema>;
 // Cached on `globalThis` so Next.js dev's hot-reload doesn't reopen the file (and re-run
 // migrations) on every request — the same pattern commonly used for a Prisma client.
 declare global {
-  var __clearmatchDb: Db | undefined;
+  var __candidateCatcherDb: Db | undefined;
 }
 
 function createDb(): Db {
@@ -31,8 +31,8 @@ function createDb(): Db {
 
 /** The one SQLite connection for this process, auto-migrated on first use. */
 export function getDb(): Db {
-  if (!globalThis.__clearmatchDb) {
-    globalThis.__clearmatchDb = createDb();
+  if (!globalThis.__candidateCatcherDb) {
+    globalThis.__candidateCatcherDb = createDb();
   }
-  return globalThis.__clearmatchDb;
+  return globalThis.__candidateCatcherDb;
 }

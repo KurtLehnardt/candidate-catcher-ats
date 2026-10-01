@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ClearMatch — guided cloud-key setup.
+ * Candidate Catcher ATS — guided cloud-key setup.
  *
  *   npm run setup            (from the scaffold/ directory)
  *   npm run setup -- --yes   (non-interactive; leaves blanks blank)
@@ -50,7 +50,7 @@ async function ask(query) {
 
 async function main() {
   console.log(
-    c.b("\nClearMatch — guided cloud-key setup\n") +
+    c.b("\nCandidate Catcher ATS — guided cloud-key setup\n") +
       c.dim("Use a hosted LLM (Anthropic and/or OpenAI) for scoring. Prefer fully local? Run `npm run setup:local` instead.\n"),
   );
 

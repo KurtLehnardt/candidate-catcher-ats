@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ClearMatch — guided fully-local setup (Ollama).
+ * Candidate Catcher ATS — guided fully-local setup (Ollama).
  *
  *   npm run setup:local            (from the scaffold/ directory)
  *   npm run setup:local -- --yes   (non-interactive; sane defaults)
@@ -18,7 +18,7 @@
  *   5. Merges the local env into scaffold/.env.local (never clobbering a
  *      value you already set).
  *
- * Unlike a RAG tool with a large shipped corpus to re-embed, ClearMatch's
+ * Unlike a RAG tool with a large shipped corpus to re-embed, Candidate Catcher ATS's
  * reference-hire corpus starts empty and only grows as you mark candidates
  * as hires — there's nothing to re-embed here, so this script stops once
  * the embedding model is pulled and .env.local is written.
@@ -263,7 +263,7 @@ function parseMacosMajorFromSwVers() {
 
 async function main() {
   console.log(
-    c.b("\nClearMatch — guided local-model setup\n") +
+    c.b("\nCandidate Catcher ATS — guided local-model setup\n") +
       c.dim("Go fully local (Ollama): scoring AND the reference-hire embeddings on your machine, no API keys.\n"),
   );
 
@@ -361,7 +361,7 @@ async function main() {
   heading("Embeddings model (for the reference-hire corpus)");
   console.log(
     c.dim(
-      "  Embeddings are a SEPARATE model from the chat LLM. ClearMatch's reference-hire\n" +
+      "  Embeddings are a SEPARATE model from the chat LLM. Candidate Catcher ATS's reference-hire\n" +
         `  corpus needs ${EMBED_MODEL} to run fully local — without it, embedding calls still\n` +
         "  need a cloud provider even with LLM_PROVIDER=ollama.",
     ),

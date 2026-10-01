@@ -16,7 +16,7 @@ export const OLLAMA_MIN_MACOS = 14;
 /** Non-interactive fallback when memory detection is unreliable and we can't ask. */
 export const DEFAULT_MODEL_WHEN_UNKNOWN = "llama3.2:3b";
 
-/** Embeddings model ClearMatch's reference-hire corpus always needs locally. */
+/** Embeddings model Candidate Catcher ATS's reference-hire corpus always needs locally. */
 export const EMBED_MODEL = "nomic-embed-text";
 
 /**
