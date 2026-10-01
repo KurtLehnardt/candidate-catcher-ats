@@ -24,7 +24,7 @@
 set -euo pipefail
 
 # TODO: set this once the repo has a real GitHub remote.
-REPO_URL="${CANDIDATE_CATCHER_REPO_URL:-https://github.com/TODO-SET-ME/candidate-catcher-ats.git}"
+REPO_URL="${CANDIDATE_CATCHER_REPO_URL:-https://github.com/KurtLehnardt/candidate-catcher-ats.git}"
 TARGET_DIR="${CANDIDATE_CATCHER_INSTALL_DIR:-candidate-catcher-ats}"
 NODE_MAJOR_MIN=22
 # Lowest macOS major version Ollama's .app/.dmg (and the Homebrew cask) support.

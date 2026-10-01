@@ -17,7 +17,7 @@
 $ErrorActionPreference = "Stop"
 
 # TODO: set this once the repo has a real GitHub remote.
-$RepoUrl = if ($env:CANDIDATE_CATCHER_REPO_URL) { $env:CANDIDATE_CATCHER_REPO_URL } else { "https://github.com/TODO-SET-ME/candidate-catcher-ats.git" }
+$RepoUrl = if ($env:CANDIDATE_CATCHER_REPO_URL) { $env:CANDIDATE_CATCHER_REPO_URL } else { "https://github.com/KurtLehnardt/candidate-catcher-ats.git" }
 $TargetDir = if ($env:CANDIDATE_CATCHER_INSTALL_DIR) { $env:CANDIDATE_CATCHER_INSTALL_DIR } else { "candidate-catcher-ats" }
 $NodeMajorMin = 22
 
