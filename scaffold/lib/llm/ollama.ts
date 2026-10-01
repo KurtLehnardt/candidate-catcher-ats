@@ -11,6 +11,12 @@ import { requirementScoreSchema } from "./schema";
 // prompt instructions plus the zod `.parse()` below, rather than the model being
 // constrained to the schema server-side.
 export class OllamaProvider implements LLMProvider {
+  // Same dual-use split as OpenAIProvider — see its constructor comment.
+  constructor(
+    private readonly chatModelOverride?: string,
+    private readonly embeddingsModelOverride?: string,
+  ) {}
+
   private chatClient(): OpenAI {
     return new OpenAI({
       apiKey: "ollama", // unused by Ollama; the SDK just requires a non-empty string
@@ -31,8 +37,8 @@ export class OllamaProvider implements LLMProvider {
     weight: number,
     referenceSnippets: string[] = [],
   ): Promise<RequirementScore> {
-    const model = process.env.LOCAL_LLM_MODEL;
-    if (!model) throw new Error("OllamaProvider.scoreRequirement: LOCAL_LLM_MODEL is not set");
+    const model = this.chatModelOverride || process.env.LOCAL_LLM_MODEL;
+    if (!model) throw new Error("OllamaProvider.scoreRequirement: no model set (neither /settings nor LOCAL_LLM_MODEL)");
 
     const completion = await this.chatClient().chat.completions.create({
       model,
@@ -55,7 +61,7 @@ export class OllamaProvider implements LLMProvider {
   }
 
   async embed(text: string): Promise<number[]> {
-    const model = process.env.EMBEDDINGS_MODEL || "nomic-embed-text";
+    const model = this.embeddingsModelOverride || process.env.EMBEDDINGS_MODEL || "nomic-embed-text";
     const response = await this.embedClient().embeddings.create({ model, input: text });
     const embedding = response.data[0]?.embedding;
     if (!embedding) throw new Error("OllamaProvider.embed: no embedding returned");
