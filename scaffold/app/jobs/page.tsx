@@ -16,12 +16,17 @@ export default async function JobsPage() {
     <div className="mx-auto w-full max-w-3xl px-6 py-12">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Jobs</h1>
-        <Link
-          href="/jobs/new"
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          New job
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/reference-hires" className="text-sm text-zinc-500 hover:underline">
+            Reference hires
+          </Link>
+          <Link
+            href="/jobs/new"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            New job
+          </Link>
+        </div>
       </div>
 
       {jobRows.length === 0 && <p className="text-zinc-500">No jobs yet. Create one to start ranking applicants.</p>}
