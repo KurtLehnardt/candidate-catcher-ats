@@ -24,6 +24,7 @@ export default async function ApplicantPage({
     .select({
       id: requirementScores.id,
       aiScore: requirementScores.aiScore,
+      failed: requirementScores.failed,
       evidenceSnippet: requirementScores.evidenceSnippet,
       substanceNote: requirementScores.substanceNote,
       requirementId: requirements.id,
@@ -134,7 +135,13 @@ export default async function ApplicantPage({
           <div key={s.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
             <div className="mb-2 flex items-start justify-between gap-4">
               <p className="font-medium">{s.requirementText}</p>
-              <p className="shrink-0 text-lg font-semibold">{Math.round(s.aiScore)}%</p>
+              {s.failed || s.aiScore == null ? (
+                <p className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                  Scoring failed
+                </p>
+              ) : (
+                <p className="shrink-0 text-lg font-semibold">{Math.round(s.aiScore)}%</p>
+              )}
             </div>
 
             {s.evidenceSnippet && (

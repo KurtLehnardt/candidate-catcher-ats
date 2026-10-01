@@ -21,14 +21,22 @@ export async function recomputeOverallScores(jobId: string): Promise<void> {
 
   for (const applicant of applicantRows) {
     const scoreRows = await db
-      .select({ requirementId: requirementScores.requirementId, aiScore: requirementScores.aiScore })
+      .select({
+        requirementId: requirementScores.requirementId,
+        aiScore: requirementScores.aiScore,
+        failed: requirementScores.failed,
+      })
       .from(requirementScores)
       .where(eq(requirementScores.applicantId, applicant.id));
 
+    // Failed rows (aiScore null after a retried-and-still-bad LLM response) are excluded
+    // from the aggregate entirely, same as if scoring hadn't been attempted for that
+    // requirement yet -- not treated as a 0, which would unfairly tank the applicant's
+    // overall score for a transient provider hiccup rather than a real weak match.
     const overall = aggregateScore(
       scoreRows
-        .filter((s) => weightByRequirement.has(s.requirementId))
-        .map((s) => ({ score: s.aiScore, weight: weightByRequirement.get(s.requirementId)! })),
+        .filter((s) => weightByRequirement.has(s.requirementId) && !s.failed && s.aiScore != null)
+        .map((s) => ({ score: s.aiScore!, weight: weightByRequirement.get(s.requirementId)! })),
     );
 
     await db.update(applicants).set({ overallScore: overall }).where(eq(applicants.id, applicant.id));

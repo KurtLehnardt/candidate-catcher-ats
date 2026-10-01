@@ -10,6 +10,7 @@ import { getProvider } from "@/lib/llm/provider";
 import { embedText, getEmbeddingsProvider } from "@/lib/llm/embeddings";
 import { getTopReferenceHires } from "@/lib/embeddings/reference-lookup";
 import { recomputeOverallScores } from "@/lib/scoring/recompute";
+import { scoreResumeWithRetry } from "@/lib/scoring/score-resume-with-retry";
 import { ensureResumesDir, uploadResumeFile } from "@/lib/storage";
 
 /** Best-effort "Firstname Lastname" guess from a filename like "jane_doe_resume.pdf". */
@@ -76,50 +77,71 @@ export async function runScoring(jobId: string): Promise<void> {
   const provider = getProvider();
   const embeddingsProvider = getEmbeddingsProvider();
 
+  // One LLM call per resume (covering every requirement), not one call per
+  // requirement-per-resume -- cuts total calls (and wall-clock time, and failure surface)
+  // by roughly the requirement count. Each applicant's own try/catch means an unexpected
+  // failure (not just a bad LLM response, which scoreResumeWithRetry already handles
+  // internally) for one resume can't lose every other resume's already-persisted work in
+  // the same run -- that's exactly what crashed a real scoring run previously: one
+  // uncaught error aborted the whole batch.
   for (const applicant of applicantRows) {
     const resume = applicant.resume;
     if (!resume?.rawText) continue;
 
-    const strippedText = stripBias(resume.rawText, { candidateName: applicant.name });
-
-    // Reference-hire grounding is optional best-effort context — no reference hires yet
-    // (or an unconfigured embeddings provider) should still let scoring proceed.
-    let referenceSnippets: string[] = [];
     try {
-      const embedding = await embedText(strippedText);
-      const matches = await getTopReferenceHires({
-        jobFamily: job.title,
-        embedding,
-        embeddingsProvider,
-      });
-      referenceSnippets = matches.map((m) => m.resumeText);
-    } catch {
-      referenceSnippets = [];
-    }
+      const strippedText = stripBias(resume.rawText, { candidateName: applicant.name });
 
-    for (const requirement of reqRows) {
-      const result = await provider.scoreRequirement(strippedText, requirement.text, requirement.weight, referenceSnippets);
-
-      await db
-        .insert(requirementScores)
-        .values({
-          applicantId: applicant.id,
-          requirementId: requirement.id,
-          aiScore: result.score,
-          evidenceSnippet: result.evidence,
-          substanceNote: result.substanceNote,
-        })
-        .onConflictDoUpdate({
-          target: [requirementScores.applicantId, requirementScores.requirementId],
-          set: {
-            aiScore: result.score,
-            evidenceSnippet: result.evidence,
-            substanceNote: result.substanceNote,
-          },
+      // Reference-hire grounding is optional best-effort context — no reference hires yet
+      // (or an unconfigured embeddings provider) should still let scoring proceed.
+      let referenceSnippets: string[] = [];
+      try {
+        const embedding = await embedText(strippedText);
+        const matches = await getTopReferenceHires({
+          jobFamily: job.title,
+          embedding,
+          embeddingsProvider,
         });
-    }
+        referenceSnippets = matches.map((m) => m.resumeText);
+      } catch {
+        referenceSnippets = [];
+      }
 
-    await db.update(resumes).set({ biasStripped: true }).where(eq(resumes.id, resume.id));
+      const outcomes = await scoreResumeWithRetry(
+        provider,
+        strippedText,
+        reqRows.map((r) => ({ id: r.id, text: r.text, weight: r.weight })),
+        referenceSnippets,
+      );
+
+      for (const outcome of outcomes) {
+        await db
+          .insert(requirementScores)
+          .values({
+            applicantId: applicant.id,
+            requirementId: outcome.requirementId,
+            aiScore: outcome.score,
+            failed: outcome.failed,
+            evidenceSnippet: outcome.evidence,
+            substanceNote: outcome.substanceNote,
+          })
+          .onConflictDoUpdate({
+            target: [requirementScores.applicantId, requirementScores.requirementId],
+            set: {
+              aiScore: outcome.score,
+              failed: outcome.failed,
+              evidenceSnippet: outcome.evidence,
+              substanceNote: outcome.substanceNote,
+            },
+          });
+      }
+
+      await db.update(resumes).set({ biasStripped: true }).where(eq(resumes.id, resume.id));
+    } catch (err) {
+      // Scoring this one applicant failed in a way scoreResumeWithRetry couldn't already
+      // absorb (e.g. bias-strip threw, DB write failed) -- log and move on rather than
+      // losing every other applicant's results in the same run.
+      console.error(`runScoring: applicant ${applicant.id} failed, continuing with the rest`, err);
+    }
   }
 
   await recomputeOverallScores(jobId);

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
-import type { LLMProvider, RequirementScore } from "./provider";
-import { SCORING_SYSTEM_PROMPT, buildScoringUserPrompt } from "./prompt";
-import { requirementScoreSchema } from "./schema";
+import type { LLMProvider, RequirementScoreResult } from "./provider";
+import { BATCH_SCORING_SYSTEM_PROMPT, buildBatchScoringUserPrompt, type ScoringRequirementInput } from "./prompt";
+import { requirementScoreBatchSchema } from "./schema";
 
 // Ollama serves an OpenAI-compatible API (the same trick github.com/KurtLehnardt/granted
 // relies on), so this reuses the `openai` SDK pointed at LLM_BASE_URL instead of a
@@ -9,9 +9,11 @@ import { requirementScoreSchema } from "./schema";
 // compat layer supports `response_format: {type: "json_object"}` (basic JSON mode) but not
 // OpenAI's stricter `json_schema` strict mode, so schema conformance here relies on the
 // prompt instructions plus the zod `.parse()` below, rather than the model being
-// constrained to the schema server-side.
+// constrained to the schema server-side -- which is exactly why the batch orchestration
+// layer (lib/scoring/score-resume-with-retry.ts) retries on a malformed/incomplete
+// response instead of assuming this provider always gets it right first try.
 export class OllamaProvider implements LLMProvider {
-  // Same dual-use split as OpenAIProvider — see its constructor comment.
+  // Same dual-use split as OpenAIProvider -- see its constructor comment.
   constructor(
     private readonly chatModelOverride?: string,
     private readonly embeddingsModelOverride?: string,
@@ -31,33 +33,32 @@ export class OllamaProvider implements LLMProvider {
     });
   }
 
-  async scoreRequirement(
+  async scoreResume(
     resumeText: string,
-    requirementText: string,
-    weight: number,
+    requirements: ScoringRequirementInput[],
     referenceSnippets: string[] = [],
-  ): Promise<RequirementScore> {
+  ): Promise<RequirementScoreResult[]> {
     const model = this.chatModelOverride || process.env.LOCAL_LLM_MODEL;
-    if (!model) throw new Error("OllamaProvider.scoreRequirement: no model set (neither /settings nor LOCAL_LLM_MODEL)");
+    if (!model) throw new Error("OllamaProvider.scoreResume: no model set (neither /settings nor LOCAL_LLM_MODEL)");
 
     const completion = await this.chatClient().chat.completions.create({
       model,
       messages: [
         {
           role: "system",
-          content: `${SCORING_SYSTEM_PROMPT}\n\nRequired JSON shape: {"score": number 0-100, "evidence": string, "substanceNote": string}. Return ONLY that JSON object.`,
+          content: `${BATCH_SCORING_SYSTEM_PROMPT}\n\nRequired JSON shape: {"scores": [{"requirementId": string, "score": number 0-100, "evidence": string, "substanceNote": string}, ...]}. Return ONLY that JSON object.`,
         },
         {
           role: "user",
-          content: buildScoringUserPrompt(resumeText, requirementText, weight, referenceSnippets),
+          content: buildBatchScoringUserPrompt(resumeText, requirements, referenceSnippets),
         },
       ],
       response_format: { type: "json_object" },
     });
 
     const raw = completion.choices[0]?.message?.content;
-    if (!raw) throw new Error("OllamaProvider.scoreRequirement: empty response");
-    return requirementScoreSchema.parse(JSON.parse(raw));
+    if (!raw) throw new Error("OllamaProvider.scoreResume: empty response");
+    return requirementScoreBatchSchema.parse(JSON.parse(raw)).scores;
   }
 
   async embed(text: string): Promise<number[]> {

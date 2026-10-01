@@ -93,7 +93,11 @@ export const requirementScores = sqliteTable(
     requirementId: text("requirement_id")
       .notNull()
       .references(() => requirements.id, { onDelete: "cascade" }),
-    aiScore: real("ai_score").notNull(),
+    // Nullable: a score that failed after retry (see lib/scoring/score-resume-with-retry.ts)
+    // is persisted as a row with aiScore=null, failed=true -- a visible, distinct state
+    // from "scored 0" -- rather than throwing away the whole run's other results.
+    aiScore: real("ai_score"),
+    failed: integer("failed", { mode: "boolean" }).notNull().default(false),
     evidenceSnippet: text("evidence_snippet"),
     // Commentary distinguishing a quantified, specific claim from generic
     // keyword-stuffing/buzzwords — Candidate Catcher ATS's "substance vs. buzzword" signal.

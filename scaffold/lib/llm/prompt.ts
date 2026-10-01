@@ -1,36 +1,52 @@
 // Shared prompt text for all three LLMProvider implementations, so the actual scoring
 // instructions (including the buzzword-vs-substance rubric) stay identical across
-// Anthropic/OpenAI/Ollama — only the structured-output mechanism differs per provider.
+// Anthropic/OpenAI/Ollama -- only the structured-output mechanism differs per provider.
+//
+// Scoring is batched: ONE call covers every requirement for a given resume, instead of
+// one call per requirement. This cuts LLM calls (and wall-clock time, and failure
+// surface) by roughly the number of requirements on a job.
 
-export const SCORING_SYSTEM_PROMPT = `You are an expert technical recruiter. Score how well a candidate's resume satisfies ONE specific job requirement.
+export const BATCH_SCORING_SYSTEM_PROMPT = `You are an expert technical recruiter. Score how well a candidate's resume satisfies EACH of the job requirements listed below, independently of one another.
 
 Critically distinguish GENUINE ACCOMPLISHMENTS from BUZZWORDS:
 - Genuine: specific, quantified, verifiable claims ("led a team of 4 engineers", "reduced p99 latency from 800ms to 120ms", "processed 10M requests/day").
 - Buzzword: vague, unquantified, keyword-stuffed claims ("passionate about scalable systems", "expert in cloud technologies", "results-driven team player").
 
-Score higher for genuine, evidenced accomplishments that match the requirement. Score lower — even if the right keywords appear — for vague buzzword claims with no substance behind them. Always state which kind the evidence is in your substanceNote, and why.
+Score higher for genuine, evidenced accomplishments that match a requirement. Score lower -- even if the right keywords appear -- for vague buzzword claims with no substance behind them. Always state which kind the evidence is in that requirement's substanceNote, and why.
 
-Respond with exactly one JSON object matching the required schema. No text outside the JSON object.`;
+If the resume genuinely has no supporting evidence for a requirement, use an empty string for that entry's evidence and say so in substanceNote -- do not fabricate a quote that isn't in the resume.
 
-export function buildScoringUserPrompt(
+Respond with exactly one JSON object of the shape {"scores": [...]}, with exactly one entry per requirement id listed below (echo the id back exactly as given), in any order. No text outside the JSON object.`;
+
+export interface ScoringRequirementInput {
+  id: string;
+  text: string;
+  weight: number;
+}
+
+export function buildBatchScoringUserPrompt(
   resumeText: string,
-  requirementText: string,
-  weight: number,
+  requirements: ScoringRequirementInput[],
   referenceSnippets: string[] = [],
 ): string {
+  const requirementList = requirements
+    .map((r) => `- id: "${r.id}" (importance weight ${r.weight}): "${r.text}"`)
+    .join("\n");
+
   const referenceBlock =
     referenceSnippets.length > 0
-      ? `\n\nFor grounding, here are excerpts from resumes of people previously hired for similar roles at this organization. Use these only as calibration context for what "strong" looks like here — do not penalize this candidate for simply differing from them:\n${referenceSnippets
+      ? `\n\nFor grounding, here are excerpts from resumes of people previously hired for similar roles at this organization. Use these only as calibration context for what "strong" looks like here -- do not penalize this candidate for simply differing from them:\n${referenceSnippets
           .map((snippet, i) => `[Reference ${i + 1}]\n${snippet}`)
           .join("\n\n")}`
       : "";
 
-  return `Requirement (importance weight ${weight}): "${requirementText}"
+  return `Job requirements to score this candidate against:
+${requirementList}
 
 Candidate resume (identifying details removed):
 """
 ${resumeText}
 """${referenceBlock}
 
-Score this candidate against the requirement above.`;
+Score this candidate against EVERY requirement listed above, returning one entry per id.`;
 }

@@ -2,20 +2,28 @@ import { AnthropicProvider } from "./anthropic";
 import { OpenAIProvider } from "./openai";
 import { OllamaProvider } from "./ollama";
 import { getSettings } from "../db/settings";
+import type { ScoringRequirementInput } from "./prompt";
 
-export interface RequirementScore {
+export interface RequirementScoreResult {
+  requirementId: string;
   score: number;
   evidence: string;
   substanceNote: string;
 }
 
 export interface LLMProvider {
-  scoreRequirement(
+  /**
+   * Score a resume against ALL of a job's requirements in one call (batched -- see
+   * lib/llm/prompt.ts for why). Returns one result per requirement that the model
+   * actually answered; a provider implementation is not responsible for filling in
+   * missing/failed entries -- that's lib/scoring/score-resume-with-retry.ts's job, so it
+   * can retry and merge without each provider duplicating that logic.
+   */
+  scoreResume(
     resumeText: string,
-    requirementText: string,
-    weight: number,
+    requirements: ScoringRequirementInput[],
     referenceSnippets?: string[],
-  ): Promise<RequirementScore>;
+  ): Promise<RequirementScoreResult[]>;
   embed(text: string): Promise<number[]>;
 }
 

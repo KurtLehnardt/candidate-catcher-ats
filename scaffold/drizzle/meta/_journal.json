@@ -15,6 +15,13 @@
       "when": 1790831611789,
       "tag": "0001_cold_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790834109599,
+      "tag": "0002_keen_the_fallen",
+      "breakpoints": true
     }
   ]
 }
