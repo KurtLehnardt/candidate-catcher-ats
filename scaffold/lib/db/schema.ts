@@ -166,6 +166,27 @@ export const settings = sqliteTable("settings", {
     .$defaultFn(() => new Date()),
 });
 
+// Persistent error log — a self-hosted user has no external error-tracking service and
+// may not be watching the terminal `next dev` runs in, so both server- and client-side
+// errors are captured here instead of only ever reaching a console that scrolls away.
+// `context` is a small JSON blob (route, action name, a job/applicant id) for narrowing
+// down what was happening — deliberately never the resume text or any request body, and
+// never an API key, since this table has no extra access control beyond the rest of the
+// (single-user, local-only) app.
+export const errorLogs = sqliteTable(
+  "error_logs",
+  {
+    id: id(),
+    source: text("source").notNull(), // 'server' | 'client'
+    level: text("level").notNull().default("error"), // 'error' | 'warn'
+    message: text("message").notNull(),
+    stack: text("stack"),
+    context: text("context"), // JSON.stringify({...}) — small, non-sensitive metadata only
+    createdAt: createdAt(),
+  },
+  (t) => [index("error_logs_created_at_idx").on(t.createdAt)],
+);
+
 // Relations — needed for the `db.query.X.findMany({ with: {...} })` relational API used
 // by a few read paths (e.g. loading an applicant together with their resume in one go).
 
