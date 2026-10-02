@@ -6,11 +6,19 @@
 // "obviously best" and "obviously worst" resumes land at #1 / last in EVERY run.
 //
 // Usage:
-//   npm run eval                       -- all 10 jobs, 3 runs each (default)
+//   npm run eval                       -- all jobs, 3 runs each (default)
 //   npm run eval -- --jobs=2 --runs=1  -- a fast/cheap smoke subset
+//   npm run eval -- --job=principal-software-engineer --runs=1
+//                                       -- seed/score ONE job by its fixture key, not the
+//                                          first N in the array (useful for demo seeding)
 //   LLM_PROVIDER=ollama npm run eval   -- which provider to score with (default: ollama,
 //                                          since it's free and already set up locally;
 //                                          override to anthropic/openai for a faster/paid run)
+//   EVAL_DB_PATH=../data/candidate-catcher-ats.db npm run eval -- --job=foo --runs=1
+//                                       -- point at an arbitrary DB (e.g. the real app's
+//                                          live database, to seed demo data into it). See
+//                                          the safety note below: a non-default path is
+//                                          NEVER wiped, only added to.
 //
 // Cost/time warning: the full default (10 jobs x ~10 resumes x 3 runs) is ~300 LLM calls.
 // At local-Ollama speed (observed ~35-70s/call elsewhere in this app) that's multiple
@@ -20,7 +28,12 @@ import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
 
-const EVAL_DB_PATH = process.env.EVAL_DB_PATH ?? "data/eval.db";
+const DEFAULT_EVAL_DB_PATH = "data/eval.db";
+const EVAL_DB_PATH = process.env.EVAL_DB_PATH ?? DEFAULT_EVAL_DB_PATH;
+// True only when the caller explicitly pointed this at something other than the
+// throwaway default -- e.g. the real app's data/candidate-catcher-ats.db to seed demo
+// data into it. That target is assumed to be real, live data to ADD to, never wipe.
+const IS_CUSTOM_DB_TARGET = EVAL_DB_PATH !== DEFAULT_EVAL_DB_PATH;
 // Must be set before any lib/db/client.ts import, since it reads DATABASE_PATH at
 // module-load time via getDb()'s lazy singleton.
 process.env.DATABASE_PATH = EVAL_DB_PATH;
@@ -29,11 +42,14 @@ process.env.DATABASE_PATH = EVAL_DB_PATH;
 if (!process.env.LLM_PROVIDER) process.env.LLM_PROVIDER = "ollama";
 
 // Fresh eval DB every run -- this is synthetic throwaway data, not something to
-// accumulate/migrate across runs. Must never touch data/candidate-catcher-ats.db itself,
-// only the separate eval path above.
-for (const suffix of ["", "-wal", "-shm"]) {
-  const p = resolve(process.cwd(), EVAL_DB_PATH + suffix);
-  if (existsSync(p)) rmSync(p);
+// accumulate/migrate across runs. NEVER applies to a custom EVAL_DB_PATH (see
+// IS_CUSTOM_DB_TARGET above) -- that path's existing content is preserved and only added
+// to, specifically so this can safely target data/candidate-catcher-ats.db.
+if (!IS_CUSTOM_DB_TARGET) {
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const p = resolve(process.cwd(), EVAL_DB_PATH + suffix);
+    if (existsSync(p)) rmSync(p);
+  }
 }
 
 const { getDb } = await import("../lib/db/client");
@@ -60,8 +76,18 @@ function parseArg(name: string, def: number): number {
   return Number.isFinite(val) && val > 0 ? val : def;
 }
 
+function parseStringArg(name: string): string | undefined {
+  const arg = process.argv.find((a) => a.startsWith(`--${name}=`));
+  return arg ? arg.split("=").slice(1).join("=") : undefined;
+}
+
 const RUNS = parseArg("runs", 3);
 const JOB_LIMIT = parseArg("jobs", jobFixtures.length);
+const JOB_KEY = parseStringArg("job");
+if (JOB_KEY && !jobFixtures.some((j) => j.key === JOB_KEY)) {
+  console.error(`eval: no job fixture with key "${JOB_KEY}". Known keys: ${jobFixtures.map((j) => j.key).join(", ")}`);
+  process.exit(1);
+}
 
 async function main() {
   const db = getDb();
@@ -69,7 +95,7 @@ async function main() {
   const startedAt = Date.now();
   let totalCalls = 0;
 
-  const jobsToRun = jobFixtures.slice(0, JOB_LIMIT);
+  const jobsToRun = JOB_KEY ? jobFixtures.filter((j) => j.key === JOB_KEY) : jobFixtures.slice(0, JOB_LIMIT);
   console.log(
     `Running eval: ${jobsToRun.length} job(s), ${RUNS} run(s) each, provider=${process.env.LLM_PROVIDER}, db=${EVAL_DB_PATH}\n`,
   );

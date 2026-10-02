@@ -119,4 +119,32 @@ export const jobs: JobFixture[] = [
       { text: "M&A transaction experience", weight: 0.8 },
     ],
   },
+  {
+    key: "principal-software-engineer",
+    title: "Principal Software Engineer",
+    description:
+      "We're hiring a Principal Software Engineer to set technical direction across multiple teams, own architecture for our most critical systems, and raise the engineering bar org-wide.",
+    requirements: [
+      {
+        text: "10+ years of professional software engineering experience, including deep ownership of large-scale distributed systems",
+        weight: 1.6,
+      },
+      {
+        text: "Demonstrated technical leadership and mentorship at an organization-wide scale, without direct management authority",
+        weight: 1.4,
+      },
+      {
+        text: "Track record of driving cross-team architectural decisions with measurable business or technical impact",
+        weight: 1.3,
+      },
+      {
+        text: "Deep expertise in at least one specialized domain (e.g. distributed systems, infrastructure, ML platforms, security)",
+        weight: 1.2,
+      },
+      {
+        text: "Experience operating systems at significant scale (millions of users/requests, high-availability requirements)",
+        weight: 1.0,
+      },
+    ],
+  },
 ];
