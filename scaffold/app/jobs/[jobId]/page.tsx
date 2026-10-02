@@ -61,7 +61,12 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
       <Link href="/jobs" className="text-sm text-zinc-500 hover:underline">
         &larr; All jobs
       </Link>
-      <h1 className="mb-1 mt-2 text-2xl font-semibold">{job.title}</h1>
+      <div className="mb-1 mt-2 flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold">{job.title}</h1>
+        <Link href={`/jobs/${jobId}/export`} className="text-sm text-zinc-500 underline hover:text-zinc-900 dark:hover:text-zinc-100">
+          Scoring methodology &amp; evidence report
+        </Link>
+      </div>
       <p className="mb-6 text-sm text-zinc-500">Status: {job.status}</p>
 
       {job.description && (
