@@ -122,6 +122,12 @@ export const manualScores = sqliteTable(
       .references(() => jobs.id, { onDelete: "cascade" }),
     score: real("score").notNull(),
     note: text("note"),
+    // No auth in this app, so this is a free-text label, not an account reference — lets
+    // more than one person's judgment on the same candidate be told apart and compared
+    // side by side (and against the AI score) instead of collapsing into one undifferentiated
+    // "manual score". Nullable so the migration is safe against any pre-existing rows; the
+    // submission form requires it for anything new.
+    reviewerName: text("reviewer_name"),
     createdAt: createdAt(),
   },
   (t) => [index("manual_scores_applicant_idx").on(t.applicantId)],

@@ -23,8 +23,12 @@ export async function updateRequirementWeight(jobId: string, requirementId: stri
 export async function setManualScore(jobId: string, applicantId: string, formData: FormData): Promise<void> {
   const score = Number(formData.get("score"));
   const note = String(formData.get("note") ?? "").trim();
+  const reviewerName = String(formData.get("reviewerName") ?? "").trim();
   if (!Number.isFinite(score) || score < 0 || score > 100) {
     throw new Error("setManualScore: score must be between 0 and 100");
+  }
+  if (!reviewerName) {
+    throw new Error("setManualScore: reviewerName is required");
   }
 
   const db = getDb();
@@ -33,6 +37,7 @@ export async function setManualScore(jobId: string, applicantId: string, formDat
     jobId,
     score,
     note: note || null,
+    reviewerName,
   });
 
   revalidatePath(`/jobs/${jobId}/applicants/${applicantId}`);

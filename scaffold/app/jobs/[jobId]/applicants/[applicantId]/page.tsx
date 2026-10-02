@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { applicants, jobs, manualScores, referenceHires, requirementScores, requirements } from "@/lib/db/schema";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ReviewerNameInput } from "@/components/ReviewerNameInput";
 import { embeddingsConfigStatus } from "@/lib/embeddings/promote";
 import { updateRequirementWeight, setManualScore, promoteToReferenceHire } from "./actions";
 
@@ -40,7 +41,15 @@ export default async function ApplicantPage({
     .from(manualScores)
     .where(eq(manualScores.applicantId, applicantId))
     .orderBy(desc(manualScores.createdAt));
-  const latestManualScore = manualScoreRows[0];
+
+  // A meaningful-disagreement threshold (points on the 0-100 scale) — a judgment call, not
+  // a precise statistical bound. Used both to flag a reviewer's score against the AI's and
+  // to flag reviewers against each other.
+  const DISAGREEMENT_THRESHOLD = 15;
+  const manualScoreValues = manualScoreRows.map((m) => m.score);
+  const reviewerRange =
+    manualScoreValues.length >= 2 ? Math.max(...manualScoreValues) - Math.min(...manualScoreValues) : 0;
+  const reviewersDisagree = reviewerRange >= DISAGREEMENT_THRESHOLD;
 
   const existingReferenceHire = await db.query.referenceHires.findFirst({
     where: eq(referenceHires.promotedFromApplicantId, applicantId),
@@ -64,14 +73,63 @@ export default async function ApplicantPage({
       </div>
 
       <section className="mb-8 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="mb-2 text-sm font-semibold">Your score</h2>
-        {latestManualScore && (
-          <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-            Current: <span className="font-medium text-zinc-900 dark:text-zinc-100">{latestManualScore.score}%</span>
-            {latestManualScore.note && ` — ${latestManualScore.note}`}
-          </p>
+        <h2 className="mb-3 text-sm font-semibold">Reviewer scores</h2>
+
+        {(manualScoreRows.length > 0 || applicant.overallScore != null) && (
+          <div className="mb-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800">
+                  <th className="py-1 pr-4 font-medium">Reviewer</th>
+                  <th className="py-1 pr-4 font-medium">Score</th>
+                  <th className="py-1 pr-4 font-medium">Note</th>
+                  <th className="py-1 font-medium">When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {applicant.overallScore != null && (
+                  <tr className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-4 text-zinc-500">AI aggregate</td>
+                    <td className="py-2 pr-4 font-medium">{Math.round(applicant.overallScore)}%</td>
+                    <td className="py-2 pr-4 text-zinc-400">—</td>
+                    <td className="py-2 text-zinc-400">—</td>
+                  </tr>
+                )}
+                {manualScoreRows.map((m) => {
+                  const disagreesWithAi =
+                    applicant.overallScore != null &&
+                    Math.abs(m.score - applicant.overallScore) >= DISAGREEMENT_THRESHOLD;
+                  return (
+                    <tr key={m.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                      <td className="py-2 pr-4">{m.reviewerName || "Unknown reviewer"}</td>
+                      <td
+                        className={`py-2 pr-4 font-medium ${
+                          disagreesWithAi ? "text-amber-700 dark:text-amber-400" : ""
+                        }`}
+                      >
+                        {m.score}%
+                        {disagreesWithAi && <span className="ml-1 text-xs font-normal">&#9888; vs. AI</span>}
+                      </td>
+                      <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">{m.note || "—"}</td>
+                      <td className="py-2 text-xs text-zinc-400">{m.createdAt.toLocaleDateString()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {reviewersDisagree && (
+              <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                &#9888; Reviewers disagree by {Math.round(reviewerRange)} points — worth discussing before deciding.
+              </p>
+            )}
+          </div>
         )}
-        <form action={setManualScore.bind(null, jobId, applicantId)} className="flex items-center gap-3">
+
+        <form
+          action={setManualScore.bind(null, jobId, applicantId)}
+          className="flex flex-wrap items-center gap-3"
+        >
+          <ReviewerNameInput className="w-32 rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900" />
           <input
             name="score"
             type="number"
