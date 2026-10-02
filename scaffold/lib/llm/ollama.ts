@@ -1,7 +1,13 @@
 import OpenAI from "openai";
 import type { LLMProvider, RequirementScoreResult } from "./provider";
-import { BATCH_SCORING_SYSTEM_PROMPT, buildBatchScoringUserPrompt, type ScoringRequirementInput } from "./prompt";
-import { requirementScoreBatchSchema } from "./schema";
+import {
+  BATCH_SCORING_SYSTEM_PROMPT,
+  buildBatchScoringUserPrompt,
+  EXTRACTION_SYSTEM_PROMPT,
+  buildExtractionUserPrompt,
+  type ScoringRequirementInput,
+} from "./prompt";
+import { requirementScoreBatchSchema, requirementExtractionSchema, type ExtractedRequirement } from "./schema";
 
 // Ollama serves an OpenAI-compatible API (the same trick github.com/KurtLehnardt/granted
 // relies on), so this reuses the `openai` SDK pointed at LLM_BASE_URL instead of a
@@ -67,5 +73,26 @@ export class OllamaProvider implements LLMProvider {
     const embedding = response.data[0]?.embedding;
     if (!embedding) throw new Error("OllamaProvider.embed: no embedding returned");
     return embedding;
+  }
+
+  async extractRequirements(jdText: string): Promise<ExtractedRequirement[]> {
+    const model = this.chatModelOverride || process.env.LOCAL_LLM_MODEL;
+    if (!model) throw new Error("OllamaProvider.extractRequirements: no model set (neither /settings nor LOCAL_LLM_MODEL)");
+
+    const completion = await this.chatClient().chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `${EXTRACTION_SYSTEM_PROMPT}\n\nRequired JSON shape: {"requirements": [{"text": string, "weight": number}, ...]}. Return ONLY that JSON object.`,
+        },
+        { role: "user", content: buildExtractionUserPrompt(jdText) },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) throw new Error("OllamaProvider.extractRequirements: empty response");
+    return requirementExtractionSchema.parse(JSON.parse(raw)).requirements;
   }
 }

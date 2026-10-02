@@ -3,6 +3,7 @@ import { OpenAIProvider } from "./openai";
 import { OllamaProvider } from "./ollama";
 import { getSettings } from "../db/settings";
 import type { ScoringRequirementInput } from "./prompt";
+import type { ExtractedRequirement } from "./schema";
 
 export interface RequirementScoreResult {
   requirementId: string;
@@ -25,6 +26,8 @@ export interface LLMProvider {
     referenceSnippets?: string[],
   ): Promise<RequirementScoreResult[]>;
   embed(text: string): Promise<number[]>;
+  /** Extract weighted requirements out of a pasted job description. */
+  extractRequirements(jdText: string): Promise<ExtractedRequirement[]>;
 }
 
 export function getProvider(): LLMProvider {

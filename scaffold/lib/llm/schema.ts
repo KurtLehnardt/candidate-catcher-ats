@@ -64,3 +64,50 @@ export const requirementScoreBatchJsonSchema = {
   required: ["scores"],
   additionalProperties: false,
 } as const;
+
+// One extracted requirement: the requirement text plus a relative importance weight.
+export const extractedRequirementSchema = z.object({
+  text: z.string().min(1),
+  weight: z.number().min(0),
+});
+
+export type ExtractedRequirement = z.infer<typeof extractedRequirementSchema>;
+
+// Top-level shape for a job-description-extraction call. Wrapped in an object for the
+// same reason requirementScoreBatchSchema is -- Anthropic tool `input_schema` and
+// OpenAI's `json_schema` strict mode both require an object at the top level.
+export const requirementExtractionSchema = z.object({
+  requirements: z.array(extractedRequirementSchema),
+});
+
+export type RequirementExtractionOutput = z.infer<typeof requirementExtractionSchema>;
+
+// Hand-rolled JSON Schema mirroring requirementExtractionSchema, for providers that need
+// a literal JSON Schema object rather than a zod schema.
+export const requirementExtractionJsonSchema = {
+  type: "object",
+  properties: {
+    requirements: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          text: {
+            type: "string",
+            description: "One distinct requirement or qualification extracted from the job description",
+          },
+          weight: {
+            type: "number",
+            minimum: 0,
+            description:
+              "Relative importance, where 1.0 is a normal/default requirement. Use roughly 1.5-2.0 for things the description marks as required/must-have, and roughly 0.5 for things marked nice-to-have/preferred/a plus.",
+          },
+        },
+        required: ["text", "weight"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["requirements"],
+  additionalProperties: false,
+} as const;

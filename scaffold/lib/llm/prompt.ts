@@ -50,3 +50,19 @@ ${resumeText}
 
 Score this candidate against EVERY requirement listed above, returning one entry per id.`;
 }
+
+// Prompt for extracting weighted requirements out of a pasted job description, so a
+// recruiter doesn't have to type each requirement in by hand.
+export const EXTRACTION_SYSTEM_PROMPT = `You are an expert technical recruiter. Read the job description below and extract a list of distinct, concrete requirements or qualifications a candidate would be scored against.
+
+Rules:
+- Each requirement should be a single, specific, scorable qualification (e.g. "5+ years of backend engineering experience", "AWS Solutions Architect certification", "experience leading a team of 3+ engineers") -- not a restatement of the whole job, and not vague filler like "team player" or "good communication skills" unless the description genuinely has nothing more specific to offer.
+- Assign each a weight: 1.0 is the default/normal importance. Use roughly 1.5-2.0 for anything the description marks as required, must-have, or essential. Use roughly 0.5 for anything marked nice-to-have, preferred, a plus, or bonus.
+- Extract 3-8 requirements -- enough to meaningfully cover the role, not an exhaustive restatement of every sentence.
+- If the description is too short or vague to extract anything meaningful, return an empty list rather than inventing requirements that aren't actually there.
+
+Respond with exactly one JSON object of the shape {"requirements": [...]}. No text outside the JSON object.`;
+
+export function buildExtractionUserPrompt(jdText: string): string {
+  return `Job description:\n"""\n${jdText}\n"""\n\nExtract the requirements.`;
+}

@@ -1,7 +1,19 @@
 import OpenAI from "openai";
 import type { LLMProvider, RequirementScoreResult } from "./provider";
-import { BATCH_SCORING_SYSTEM_PROMPT, buildBatchScoringUserPrompt, type ScoringRequirementInput } from "./prompt";
-import { requirementScoreBatchSchema, requirementScoreBatchJsonSchema } from "./schema";
+import {
+  BATCH_SCORING_SYSTEM_PROMPT,
+  buildBatchScoringUserPrompt,
+  EXTRACTION_SYSTEM_PROMPT,
+  buildExtractionUserPrompt,
+  type ScoringRequirementInput,
+} from "./prompt";
+import {
+  requirementScoreBatchSchema,
+  requirementScoreBatchJsonSchema,
+  requirementExtractionSchema,
+  requirementExtractionJsonSchema,
+  type ExtractedRequirement,
+} from "./schema";
 
 export class OpenAIProvider implements LLMProvider {
   // `chatModelOverride`/`embeddingsModelOverride` come from the in-app /settings picker.
@@ -52,5 +64,27 @@ export class OpenAIProvider implements LLMProvider {
     const embedding = response.data[0]?.embedding;
     if (!embedding) throw new Error("OpenAIProvider.embed: no embedding returned");
     return embedding;
+  }
+
+  async extractRequirements(jdText: string): Promise<ExtractedRequirement[]> {
+    const completion = await this.client().chat.completions.create({
+      model: this.chatModelOverride || process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages: [
+        { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
+        { role: "user", content: buildExtractionUserPrompt(jdText) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "extracted_requirements",
+          schema: requirementExtractionJsonSchema,
+          strict: true,
+        },
+      },
+    });
+
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) throw new Error("OpenAIProvider.extractRequirements: empty response");
+    return requirementExtractionSchema.parse(JSON.parse(raw)).requirements;
   }
 }
