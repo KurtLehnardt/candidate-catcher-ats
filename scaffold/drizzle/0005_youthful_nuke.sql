@@ -1,0 +1,1 @@
+ALTER TABLE `manual_scores` ADD `reviewer_name` text;
