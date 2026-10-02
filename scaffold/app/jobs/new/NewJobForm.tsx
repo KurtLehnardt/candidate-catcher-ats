@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createJob } from "../actions";
+import { createJob, extractRequirementsFromDescription } from "../actions";
 import { SubmitButton } from "@/components/SubmitButton";
 
 interface RequirementRow {
@@ -13,9 +13,33 @@ interface RequirementRow {
 let nextKey = 1;
 
 export function NewJobForm() {
+  const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState<RequirementRow[]>([
     { key: nextKey++, text: "", weight: 1 },
   ]);
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  async function handleExtract() {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const result = await extractRequirementsFromDescription(description);
+      if (!result.ok) {
+        setExtractError(result.error ?? "Couldn't extract requirements.");
+        return;
+      }
+      if (result.requirements.length === 0) {
+        setExtractError("No specific requirements found in that description — try pasting more detail, or add requirements manually below.");
+        return;
+      }
+      // Replace the current rows with the extracted set -- this pre-fills the form, it
+      // doesn't lock anything in, the user can still edit/add/remove rows afterward.
+      setRequirements(result.requirements.map((r) => ({ key: nextKey++, text: r.text, weight: r.weight })));
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   function addRequirement() {
     setRequirements((rows) => [...rows, { key: nextKey++, text: "", weight: 1 }]);
@@ -52,9 +76,22 @@ export function NewJobForm() {
           id="description"
           name="description"
           rows={5}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           placeholder="Paste the full job description here..."
         />
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExtract}
+            disabled={extracting || !description.trim()}
+            className="text-sm text-zinc-600 underline hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:no-underline dark:text-zinc-400 dark:hover:text-zinc-100 dark:disabled:text-zinc-600"
+          >
+            {extracting ? "Extracting requirements…" : "Extract requirements from description"}
+          </button>
+          {extractError && <span className="text-xs text-red-600 dark:text-red-400">{extractError}</span>}
+        </div>
       </div>
 
       <div>

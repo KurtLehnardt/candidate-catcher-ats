@@ -1,9 +1,22 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { LLMProvider, RequirementScoreResult } from "./provider";
-import { BATCH_SCORING_SYSTEM_PROMPT, buildBatchScoringUserPrompt, type ScoringRequirementInput } from "./prompt";
-import { requirementScoreBatchSchema, requirementScoreBatchJsonSchema } from "./schema";
+import {
+  BATCH_SCORING_SYSTEM_PROMPT,
+  buildBatchScoringUserPrompt,
+  EXTRACTION_SYSTEM_PROMPT,
+  buildExtractionUserPrompt,
+  type ScoringRequirementInput,
+} from "./prompt";
+import {
+  requirementScoreBatchSchema,
+  requirementScoreBatchJsonSchema,
+  requirementExtractionSchema,
+  requirementExtractionJsonSchema,
+  type ExtractedRequirement,
+} from "./schema";
 
 const TOOL_NAME = "submit_requirement_scores";
+const EXTRACTION_TOOL_NAME = "submit_extracted_requirements";
 
 export class AnthropicProvider implements LLMProvider {
   // Optional override (from the in-app /settings picker) for the chat model -- falls back
@@ -52,5 +65,30 @@ export class AnthropicProvider implements LLMProvider {
     throw new Error(
       "AnthropicProvider.embed not implemented — embeddings go through EMBEDDINGS_PROVIDER, not Anthropic (Anthropic has no embeddings API)",
     );
+  }
+
+  async extractRequirements(jdText: string): Promise<ExtractedRequirement[]> {
+    const response = await this.client().messages.create({
+      model: this.modelOverride || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+      max_tokens: 2048,
+      system: EXTRACTION_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: buildExtractionUserPrompt(jdText) }],
+      tools: [
+        {
+          name: EXTRACTION_TOOL_NAME,
+          description: "Submit the extracted requirements for this job description.",
+          input_schema: requirementExtractionJsonSchema as unknown as Anthropic.Tool.InputSchema,
+        },
+      ],
+      tool_choice: { type: "tool", name: EXTRACTION_TOOL_NAME },
+    });
+
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+    );
+    if (!toolUse) {
+      throw new Error("AnthropicProvider.extractRequirements: model did not return a tool_use block");
+    }
+    return requirementExtractionSchema.parse(toolUse.input).requirements;
   }
 }
