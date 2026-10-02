@@ -5,9 +5,18 @@ import {
   buildBatchScoringUserPrompt,
   EXTRACTION_SYSTEM_PROMPT,
   buildExtractionUserPrompt,
+  INTERVIEW_QUESTIONS_SYSTEM_PROMPT,
+  buildInterviewQuestionsUserPrompt,
   type ScoringRequirementInput,
+  type InterviewQuestionRequirementInput,
 } from "./prompt";
-import { requirementScoreBatchSchema, requirementExtractionSchema, type ExtractedRequirement } from "./schema";
+import {
+  requirementScoreBatchSchema,
+  requirementExtractionSchema,
+  interviewQuestionBatchSchema,
+  type ExtractedRequirement,
+  type InterviewQuestionItem,
+} from "./schema";
 
 // Ollama serves an OpenAI-compatible API (the same trick github.com/KurtLehnardt/granted
 // relies on), so this reuses the `openai` SDK pointed at LLM_BASE_URL instead of a
@@ -94,5 +103,30 @@ export class OllamaProvider implements LLMProvider {
     const raw = completion.choices[0]?.message?.content;
     if (!raw) throw new Error("OllamaProvider.extractRequirements: empty response");
     return requirementExtractionSchema.parse(JSON.parse(raw)).requirements;
+  }
+
+  async generateInterviewQuestions(
+    resumeText: string,
+    requirementScores: InterviewQuestionRequirementInput[],
+  ): Promise<InterviewQuestionItem[]> {
+    const model = this.chatModelOverride || process.env.LOCAL_LLM_MODEL;
+    if (!model)
+      throw new Error("OllamaProvider.generateInterviewQuestions: no model set (neither /settings nor LOCAL_LLM_MODEL)");
+
+    const completion = await this.chatClient().chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `${INTERVIEW_QUESTIONS_SYSTEM_PROMPT}\n\nRequired JSON shape: {"questions": [{"question": string, "relatedRequirementId": string}, ...]}. Return ONLY that JSON object.`,
+        },
+        { role: "user", content: buildInterviewQuestionsUserPrompt(resumeText, requirementScores) },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) throw new Error("OllamaProvider.generateInterviewQuestions: empty response");
+    return interviewQuestionBatchSchema.parse(JSON.parse(raw)).questions;
   }
 }

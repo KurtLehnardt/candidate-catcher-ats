@@ -5,14 +5,20 @@ import {
   buildBatchScoringUserPrompt,
   EXTRACTION_SYSTEM_PROMPT,
   buildExtractionUserPrompt,
+  INTERVIEW_QUESTIONS_SYSTEM_PROMPT,
+  buildInterviewQuestionsUserPrompt,
   type ScoringRequirementInput,
+  type InterviewQuestionRequirementInput,
 } from "./prompt";
 import {
   requirementScoreBatchSchema,
   requirementScoreBatchJsonSchema,
   requirementExtractionSchema,
   requirementExtractionJsonSchema,
+  interviewQuestionBatchSchema,
+  interviewQuestionBatchJsonSchema,
   type ExtractedRequirement,
+  type InterviewQuestionItem,
 } from "./schema";
 
 export class OpenAIProvider implements LLMProvider {
@@ -86,5 +92,30 @@ export class OpenAIProvider implements LLMProvider {
     const raw = completion.choices[0]?.message?.content;
     if (!raw) throw new Error("OpenAIProvider.extractRequirements: empty response");
     return requirementExtractionSchema.parse(JSON.parse(raw)).requirements;
+  }
+
+  async generateInterviewQuestions(
+    resumeText: string,
+    requirementScores: InterviewQuestionRequirementInput[],
+  ): Promise<InterviewQuestionItem[]> {
+    const completion = await this.client().chat.completions.create({
+      model: this.chatModelOverride || process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages: [
+        { role: "system", content: INTERVIEW_QUESTIONS_SYSTEM_PROMPT },
+        { role: "user", content: buildInterviewQuestionsUserPrompt(resumeText, requirementScores) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "interview_questions",
+          schema: interviewQuestionBatchJsonSchema,
+          strict: true,
+        },
+      },
+    });
+
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) throw new Error("OpenAIProvider.generateInterviewQuestions: empty response");
+    return interviewQuestionBatchSchema.parse(JSON.parse(raw)).questions;
   }
 }

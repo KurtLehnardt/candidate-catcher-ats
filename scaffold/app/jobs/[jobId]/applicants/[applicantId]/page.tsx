@@ -2,11 +2,25 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { applicants, jobs, manualScores, referenceHires, requirementScores, requirements } from "@/lib/db/schema";
+import {
+  applicants,
+  interviewQuestions,
+  jobs,
+  manualScores,
+  referenceHires,
+  requirementScores,
+  requirements,
+} from "@/lib/db/schema";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ReviewerNameInput } from "@/components/ReviewerNameInput";
 import { embeddingsConfigStatus } from "@/lib/embeddings/promote";
-import { updateRequirementWeight, setManualScore, promoteToReferenceHire } from "./actions";
+import { llmConfigStatus } from "@/lib/llm/provider";
+import {
+  updateRequirementWeight,
+  setManualScore,
+  promoteToReferenceHire,
+  generateInterviewQuestionsForApplicant,
+} from "./actions";
 
 export default async function ApplicantPage({
   params,
@@ -55,6 +69,18 @@ export default async function ApplicantPage({
     where: eq(referenceHires.promotedFromApplicantId, applicantId),
   });
   const embeddingsStatus = embeddingsConfigStatus();
+  const llmStatus = llmConfigStatus();
+
+  const questionRows = await db
+    .select({
+      id: interviewQuestions.id,
+      question: interviewQuestions.question,
+      requirementText: requirements.text,
+    })
+    .from(interviewQuestions)
+    .leftJoin(requirements, eq(interviewQuestions.relatedRequirementId, requirements.id))
+    .where(eq(interviewQuestions.applicantId, applicantId))
+    .orderBy(interviewQuestions.createdAt);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-12">
@@ -264,6 +290,42 @@ export default async function ApplicantPage({
           </div>
         ))}
         {scoreRows.length === 0 && <p className="text-zinc-400">No scores yet — run scoring from the job page first.</p>}
+      </section>
+
+      <section className="mt-8 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Interview questions</h2>
+          {llmStatus.configured && scoreRows.length > 0 && (
+            <form action={generateInterviewQuestionsForApplicant.bind(null, jobId, applicantId)}>
+              <SubmitButton
+                pendingText="Generating..."
+                className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                {questionRows.length > 0 ? "Regenerate" : "Generate interview questions"}
+              </SubmitButton>
+            </form>
+          )}
+        </div>
+
+        {scoreRows.length === 0 ? (
+          <p className="text-sm text-zinc-400">Run scoring first — questions are generated from the actual scoring gaps.</p>
+        ) : !llmStatus.configured ? (
+          <p className="text-sm text-zinc-500">Not available: {llmStatus.reason}</p>
+        ) : questionRows.length === 0 ? (
+          <p className="text-sm text-zinc-400">
+            Not generated yet — targeted at this candidate&rsquo;s actual scoring gaps and strengths, not generic
+            questions.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {questionRows.map((q) => (
+              <li key={q.id} className="border-l-2 border-zinc-300 pl-3 dark:border-zinc-700">
+                <p className="text-sm">{q.question}</p>
+                {q.requirementText && <p className="mt-0.5 text-xs text-zinc-500">Re: {q.requirementText}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

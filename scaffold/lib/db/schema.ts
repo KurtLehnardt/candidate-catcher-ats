@@ -198,6 +198,35 @@ export const errorLogs = sqliteTable(
   (t) => [index("error_logs_created_at_idx").on(t.createdAt)],
 );
 
+// Generated interview questions, persisted so a page view never silently re-pays for a
+// fresh LLM call — generation is an explicit user action (and so is regeneration, which
+// replaces this applicant's prior rows rather than accumulating duplicates alongside them).
+export const interviewQuestions = sqliteTable(
+  "interview_questions",
+  {
+    id: id(),
+    applicantId: text("applicant_id")
+      .notNull()
+      .references(() => applicants.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    // Nullable: a question can be general (not tied to one specific requirement) rather
+    // than always mapping 1:1 to a row in `requirements`.
+    relatedRequirementId: text("related_requirement_id").references(() => requirements.id, {
+      onDelete: "set null",
+    }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("interview_questions_applicant_idx").on(t.applicantId)],
+);
+
+export const interviewQuestionsRelations = relations(interviewQuestions, ({ one }) => ({
+  applicant: one(applicants, { fields: [interviewQuestions.applicantId], references: [applicants.id] }),
+  relatedRequirement: one(requirements, {
+    fields: [interviewQuestions.relatedRequirementId],
+    references: [requirements.id],
+  }),
+}));
+
 // Relations — needed for the `db.query.X.findMany({ with: {...} })` relational API used
 // by a few read paths (e.g. loading an applicant together with their resume in one go).
 

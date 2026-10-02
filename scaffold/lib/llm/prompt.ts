@@ -66,3 +66,47 @@ Respond with exactly one JSON object of the shape {"requirements": [...]}. No te
 export function buildExtractionUserPrompt(jdText: string): string {
   return `Job description:\n"""\n${jdText}\n"""\n\nExtract the requirements.`;
 }
+
+// Prompt for generating interview questions targeted at this specific candidate's actual
+// scoring gaps and strengths, rather than a generic question bank.
+export const INTERVIEW_QUESTIONS_SYSTEM_PROMPT = `You are an expert technical recruiter preparing interview questions for ONE specific candidate, based on how they already scored against this job's requirements.
+
+For each requirement:
+- If it scored LOW or its note flags vague/unverified/buzzword claims, write a question designed to surface real evidence one way or the other -- ask the candidate to walk through specifics (what exactly they did, their individual role, concrete numbers) rather than re-asking whether they "have experience" with it.
+- If it scored HIGH with strong, specific evidence, write a question that probes depth or nuance beyond what the resume already states clearly -- don't just re-ask what's already answered.
+- Skip a requirement entirely if there's nothing useful to ask (e.g. it failed to score at all).
+
+Write 3-6 questions total, each clearly tied to one requirement id where applicable (echo it back exactly), or an empty string for a more general question (e.g. about a gap spanning multiple requirements). Be concrete and specific to THIS candidate's resume, not generic interview-question-bank phrasing.
+
+Respond with exactly one JSON object of the shape {"questions": [...]}. No text outside the JSON object.`;
+
+export interface InterviewQuestionRequirementInput {
+  id: string;
+  text: string;
+  score: number | null;
+  failed: boolean;
+  evidence: string | null;
+  substanceNote: string | null;
+}
+
+export function buildInterviewQuestionsUserPrompt(
+  resumeText: string,
+  requirementScores: InterviewQuestionRequirementInput[],
+): string {
+  const scoreList = requirementScores
+    .map((r) => {
+      if (r.failed || r.score == null) return `- id: "${r.id}": "${r.text}" — scoring failed, no usable result`;
+      return `- id: "${r.id}": "${r.text}" — score ${r.score}/100, evidence: "${r.evidence || "(none found)"}", note: "${r.substanceNote ?? ""}"`;
+    })
+    .join("\n");
+
+  return `Candidate resume (identifying details removed):
+"""
+${resumeText}
+"""
+
+This candidate's scoring against the job's requirements:
+${scoreList}
+
+Generate the interview questions.`;
+}

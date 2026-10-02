@@ -82,6 +82,47 @@ export const requirementExtractionSchema = z.object({
 
 export type RequirementExtractionOutput = z.infer<typeof requirementExtractionSchema>;
 
+// One suggested interview question. `relatedRequirementId` deliberately allows an empty
+// string for a general question not tied to one specific requirement -- same
+// allow-empty-string pattern as `evidence` above, for the same reason: forcing a value
+// where none genuinely applies is what produces an invalid response, not a safe one.
+export const interviewQuestionItemSchema = z.object({
+  question: z.string().min(1),
+  relatedRequirementId: z.string(),
+});
+
+export type InterviewQuestionItem = z.infer<typeof interviewQuestionItemSchema>;
+
+export const interviewQuestionBatchSchema = z.object({
+  questions: z.array(interviewQuestionItemSchema),
+});
+
+export type InterviewQuestionBatchOutput = z.infer<typeof interviewQuestionBatchSchema>;
+
+export const interviewQuestionBatchJsonSchema = {
+  type: "object",
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: "One targeted interview question for this candidate" },
+          relatedRequirementId: {
+            type: "string",
+            description:
+              "Echo back the exact id of the requirement this question probes, or an empty string if the question is general rather than tied to one requirement",
+          },
+        },
+        required: ["question", "relatedRequirementId"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["questions"],
+  additionalProperties: false,
+} as const;
+
 // Hand-rolled JSON Schema mirroring requirementExtractionSchema, for providers that need
 // a literal JSON Schema object rather than a zod schema.
 export const requirementExtractionJsonSchema = {

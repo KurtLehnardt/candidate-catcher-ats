@@ -5,18 +5,25 @@ import {
   buildBatchScoringUserPrompt,
   EXTRACTION_SYSTEM_PROMPT,
   buildExtractionUserPrompt,
+  INTERVIEW_QUESTIONS_SYSTEM_PROMPT,
+  buildInterviewQuestionsUserPrompt,
   type ScoringRequirementInput,
+  type InterviewQuestionRequirementInput,
 } from "./prompt";
 import {
   requirementScoreBatchSchema,
   requirementScoreBatchJsonSchema,
   requirementExtractionSchema,
   requirementExtractionJsonSchema,
+  interviewQuestionBatchSchema,
+  interviewQuestionBatchJsonSchema,
   type ExtractedRequirement,
+  type InterviewQuestionItem,
 } from "./schema";
 
 const TOOL_NAME = "submit_requirement_scores";
 const EXTRACTION_TOOL_NAME = "submit_extracted_requirements";
+const INTERVIEW_QUESTIONS_TOOL_NAME = "submit_interview_questions";
 
 export class AnthropicProvider implements LLMProvider {
   // Optional override (from the in-app /settings picker) for the chat model -- falls back
@@ -90,5 +97,33 @@ export class AnthropicProvider implements LLMProvider {
       throw new Error("AnthropicProvider.extractRequirements: model did not return a tool_use block");
     }
     return requirementExtractionSchema.parse(toolUse.input).requirements;
+  }
+
+  async generateInterviewQuestions(
+    resumeText: string,
+    requirementScores: InterviewQuestionRequirementInput[],
+  ): Promise<InterviewQuestionItem[]> {
+    const response = await this.client().messages.create({
+      model: this.modelOverride || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+      max_tokens: 2048,
+      system: INTERVIEW_QUESTIONS_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: buildInterviewQuestionsUserPrompt(resumeText, requirementScores) }],
+      tools: [
+        {
+          name: INTERVIEW_QUESTIONS_TOOL_NAME,
+          description: "Submit the interview questions for this candidate.",
+          input_schema: interviewQuestionBatchJsonSchema as unknown as Anthropic.Tool.InputSchema,
+        },
+      ],
+      tool_choice: { type: "tool", name: INTERVIEW_QUESTIONS_TOOL_NAME },
+    });
+
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+    );
+    if (!toolUse) {
+      throw new Error("AnthropicProvider.generateInterviewQuestions: model did not return a tool_use block");
+    }
+    return interviewQuestionBatchSchema.parse(toolUse.input).questions;
   }
 }

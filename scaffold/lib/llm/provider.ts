@@ -2,8 +2,8 @@ import { AnthropicProvider } from "./anthropic";
 import { OpenAIProvider } from "./openai";
 import { OllamaProvider } from "./ollama";
 import { getSettings } from "../db/settings";
-import type { ScoringRequirementInput } from "./prompt";
-import type { ExtractedRequirement } from "./schema";
+import type { ScoringRequirementInput, InterviewQuestionRequirementInput } from "./prompt";
+import type { ExtractedRequirement, InterviewQuestionItem } from "./schema";
 
 export interface RequirementScoreResult {
   requirementId: string;
@@ -28,6 +28,11 @@ export interface LLMProvider {
   embed(text: string): Promise<number[]>;
   /** Extract weighted requirements out of a pasted job description. */
   extractRequirements(jdText: string): Promise<ExtractedRequirement[]>;
+  /** Generate interview questions targeted at this candidate's actual scoring gaps/strengths. */
+  generateInterviewQuestions(
+    resumeText: string,
+    requirementScores: InterviewQuestionRequirementInput[],
+  ): Promise<InterviewQuestionItem[]>;
 }
 
 export function getProvider(): LLMProvider {
@@ -50,4 +55,32 @@ export function getProvider(): LLMProvider {
     default:
       throw new Error(`Unknown LLM provider: ${provider}`);
   }
+}
+
+export interface LLMConfigStatus {
+  configured: boolean;
+  reason?: string;
+}
+
+/**
+ * Best-effort, synchronous pre-flight check (same purpose as embeddingsConfigStatus in
+ * lib/embeddings/promote.ts) so a UI like the interview-question generator can show a
+ * clear disabled state instead of only discovering a missing key when a real call fails
+ * mid-request. Not exhaustive -- e.g. an unreachable local Ollama daemon or a missing
+ * LOCAL_LLM_MODEL still only surfaces as a runtime error from the actual call.
+ */
+export function llmConfigStatus(): LLMConfigStatus {
+  const settings = getSettings();
+  const provider = settings.llmProvider || process.env.LLM_PROVIDER || "anthropic";
+
+  if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
+    return { configured: false, reason: "LLM provider resolves to anthropic, but ANTHROPIC_API_KEY is not set." };
+  }
+  if (provider === "openai" && !process.env.OPENAI_API_KEY) {
+    return { configured: false, reason: "LLM provider resolves to openai, but OPENAI_API_KEY is not set." };
+  }
+  if (provider === "ollama" && !(settings.llmModel || process.env.LOCAL_LLM_MODEL)) {
+    return { configured: false, reason: "LLM provider resolves to ollama, but no model is set (neither /settings nor LOCAL_LLM_MODEL)." };
+  }
+  return { configured: true };
 }
